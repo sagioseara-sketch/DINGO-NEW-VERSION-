@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install & build React app
+        run: |
+          npm install
+          npm run build
+
+      - name: Install Capacitor
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "DiNGo" "com.kgames.dingo" --web-dir dist
+          npx cap add android
+          npx cap sync android
+
+      - name: Set gradlew permissions
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dingo-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
