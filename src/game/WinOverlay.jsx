@@ -1,12 +1,17 @@
 // src/game/WinOverlay.jsx
-export default function WinOverlay({ show, isWin, title, sub, onPlayAgain, onHome, showPlayAgain = true }) {
+// Handles three outcomes: win (🎉), loss (💀), and tie (🤝)
+// The `tie` prop must be passed explicitly — when true, isWin is ignored for emoji/color
+export default function WinOverlay({ show, isWin, tie, title, sub, onPlayAgain, onHome, showPlayAgain = true }) {
+  const emoji      = tie ? '🤝' : isWin ? '🎉' : '💀';
+  const titleColor = tie ? 'var(--c3)' : isWin ? 'var(--c1)' : 'var(--c2)';
+
   return (
-    <div className={`win-overlay ${show ? "show" : ""}`}>
+    <div className={`win-overlay ${show ? 'show' : ''}`}>
       <div className="win-card">
-        <div className="win-emoji">{isWin ? "🎉" : "💀"}</div>
-        <div className="win-title" style={{ color: isWin ? "var(--c1)" : "var(--c2)" }}>{title}</div>
+        <div className="win-emoji">{emoji}</div>
+        <div className="win-title" style={{ color: titleColor }}>{title}</div>
         <div className="win-sub">{sub}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {showPlayAgain && (
             <button className="btn btn-primary btn-full" onClick={onPlayAgain}>
               ↺ Play Again
