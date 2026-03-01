@@ -43,7 +43,7 @@ function AppInner() {
   const base = import.meta.env.BASE_URL;
 
   return (
-    <BrowserRouter basename={base}>
+    <BrowserRouter basename= "/DINGO-NEW-VERSION-">
       <ToastContainer />
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginScreen />} />
