@@ -8,17 +8,14 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Java 21
+      - name: Setup Java 21 (required by Capacitor/Gradle)
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -45,11 +42,9 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build debug APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace
+        run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: dingo-debug-apk
