@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DiNGo</title>
+  <script>
+    // GitHub Pages has no server-side routing.
+    // When a user refreshes or visits a URL directly, GitHub looks for
+    // a physical file at that path. If none exists, it serves this 404.html.
+    // We immediately redirect back to the app root so HashRouter can take over.
+    // The base path is extracted from the URL so this works on any repo name.
+    var base = window.location.pathname.split('/').slice(0, 2).join('/');
+    window.location.replace(window.location.origin + base + '/');
+  </script>
+</head>
+<body></body>
+</html>
