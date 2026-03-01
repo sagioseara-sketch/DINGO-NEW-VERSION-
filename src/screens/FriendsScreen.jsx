@@ -1,56 +1,63 @@
 // src/screens/FriendsScreen.jsx
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import {
-  sendFriendRequest, acceptRequest, declineRequest,
-  removeFriend, listenPendingRequests, getFriendsList
-} from "../firebase/friends";
-import { searchUserByName } from "../firebase/userService";
-import { showToast } from "../firebase/notifications";
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { sendFriendRequest, acceptRequest, declineRequest, removeFriend, listenPendingRequests, getFriendsList } from '../firebase/friends';
+import { searchUserByName } from '../firebase/userService';
+import { showToast } from '../firebase/notifications';
 
 export default function FriendsScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const nav = useNavigate();
-  const [friends, setFriends]     = useState([]);
-  const [requests, setRequests]   = useState([]);
-  const [searchVal, setSearch]    = useState("");
-  const [results, setResults]     = useState([]);
+  const [tab, setTab]           = useState('friends');
+  const [friends, setFriends]   = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [searchVal, setSearch]  = useState('');
+  const [results, setResults]   = useState([]);
   const [searching, setSearching] = useState(false);
-  const [tab, setTab]             = useState("friends"); // "friends" | "requests" | "search"
+  const [loading, setLoading]   = useState(true);
+  const unsubRef = useRef(null);
 
+  // Load friends list
   useEffect(() => {
-    if (!profile?.friends) return;
-    getFriendsList(profile.friends).then(setFriends);
-  }, [profile]);
+    if (!profile?.friends) { setLoading(false); return; }
+    getFriendsList(profile.friends)
+      .then(f => { setFriends(f); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [profile?.friends?.length]);
 
+  // Listen for pending requests
   useEffect(() => {
     if (!user) return;
-    const unsub = listenPendingRequests(user.uid, setRequests);
-    return unsub;
-  }, [user]);
+    const unsub = listenPendingRequests(user.uid, reqs => {
+      setRequests(reqs);
+    });
+    unsubRef.current = unsub;
+    return () => { if (unsubRef.current) unsubRef.current(); };
+  }, [user?.uid]);
 
   const doSearch = async () => {
     if (!searchVal.trim()) return;
-    setSearching(true);
-    const res = await searchUserByName(searchVal.trim());
-    setResults(res.filter(u => u.uid !== user.uid));
+    setSearching(true); setResults([]);
+    try {
+      const res = await searchUserByName(searchVal.trim());
+      setResults(res.filter(u => u.uid !== user.uid));
+    } catch (e) {
+      showToast('Search failed', 'Try again', 'error');
+    }
     setSearching(false);
   };
 
-  const handleSendRequest = async (toUser) => {
-    const res = await sendFriendRequest(user.uid, toUser.uid, profile.displayName);
-    if (res.error) {
-      showToast("⚠️ Already sent", res.error, "info");
-    } else {
-      showToast("✅ Request Sent", `Friend request sent to ${toUser.displayName}`, "success");
-    }
+  const handleSend = async (toUser) => {
+    const res = await sendFriendRequest(user.uid, toUser.uid, profile?.displayName || 'Player');
+    if (res.error) showToast('⚠️ ' + res.error, '', 'info');
+    else showToast('✅ Request Sent!', `Sent to ${toUser.displayName}`, 'success');
   };
 
   const handleAccept = async (req) => {
     await acceptRequest(req.id, user.uid, req.from);
     await refreshProfile(user.uid);
-    showToast("✅ Friends!", `You and ${req.fromName} are now friends.`, "success");
+    showToast('👥 Friends!', `You and ${req.fromName} are now friends`, 'success');
   };
 
   const handleDecline = async (req) => {
@@ -63,122 +70,152 @@ export default function FriendsScreen() {
     setFriends(prev => prev.filter(f => f.uid !== friendUid));
   };
 
+  const TABS = [
+    { id: 'friends',  label: `Friends (${friends.length})` },
+    { id: 'requests', label: `Requests ${requests.length > 0 ? `(${requests.length})` : ''}`, badge: requests.length },
+    { id: 'search',   label: '🔍 Find' },
+  ];
+
   return (
     <div className="screen" style={{ paddingBottom: 80 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", maxWidth: 440, marginBottom: 16, paddingTop: 8 }}>
-        <button className="btn btn-ghost" style={{ padding: "6px 12px" }} onClick={() => nav("/")}>← Back</button>
-        <span style={{ fontFamily: "'Black Han Sans',sans-serif", fontSize: 22, letterSpacing: 2 }}>👥 FRIENDS</span>
-        {requests.length > 0 && (
-          <span style={{ background: "var(--c2)", color: "#fff", fontSize: 11, fontWeight: 700, borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: "auto" }}>
-            {requests.length}
-          </span>
-        )}
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, width:'100%', maxWidth:440, marginBottom:14, paddingTop:8 }}>
+        <button className="btn btn-ghost" style={{ padding:'6px 12px' }} onClick={() => nav('/')}>← Back</button>
+        <span style={{ fontFamily:"'Black Han Sans',sans-serif", fontSize:22, letterSpacing:2 }}>👥 FRIENDS</span>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 440, marginBottom: 16 }}>
-        {[
-          { id: "friends",  label: `Friends (${friends.length})` },
-          { id: "requests", label: `Requests ${requests.length > 0 ? `(${requests.length})` : ""}` },
-          { id: "search",   label: "🔍 Find" }
-        ].map(t => (
-          <button key={t.id} className={`btn ${tab === t.id ? "btn-primary" : "btn-ghost"}`}
-            style={{ flex: 1, padding: "8px 6px", fontSize: 11 }}
-            onClick={() => setTab(t.id)}>
+      <div style={{ display:'flex', gap:6, width:'100%', maxWidth:440, marginBottom:14 }}>
+        {TABS.map(t => (
+          <button key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flex:1, padding:'9px 6px', border:'2px solid',
+              borderColor: tab === t.id ? 'var(--c1)' : 'var(--edge2)',
+              borderRadius:'var(--r)', background: tab === t.id ? 'rgba(0,255,204,0.1)' : 'var(--panel)',
+              color: tab === t.id ? 'var(--c1)' : 'var(--ink2)',
+              fontSize:11, fontWeight:700, cursor:'pointer',
+              WebkitTapHighlightColor:'transparent',
+              position:'relative'
+            }}>
             {t.label}
+            {t.badge > 0 && tab !== t.id && (
+              <span style={{
+                position:'absolute', top:-6, right:-4,
+                background:'var(--c2)', color:'#fff',
+                fontSize:10, fontWeight:700, borderRadius:'50%',
+                width:17, height:17, display:'flex', alignItems:'center', justifyContent:'center'
+              }}>{t.badge}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Friends tab */}
-      {tab === "friends" && (
-        <div className="card" style={{ maxWidth: 440 }}>
-          <div>
-            {friends.length === 0 && (
-              <div style={{ textAlign: "center", padding: 32, color: "var(--ink2)" }}>
-                No friends yet.<br />
-                <span style={{ fontSize: 13 }}>Search for players to add!</span>
-              </div>
-            )}
-            {friends.map(f => (
-              <div key={f.uid} className="friend-row">
-                <div style={{ fontSize: 26 }}>{f.avatar || "🎯"}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{f.displayName}</div>
-                  <div style={{ fontSize: 11, color: "var(--ink2)", marginTop: 2 }}>
-                    {f.wins || 0}W · {f.losses || 0}L
-                  </div>
+      {/* ── FRIENDS TAB ── */}
+      {tab === 'friends' && (
+        <div className="card" style={{ maxWidth:440 }}>
+          {loading ? (
+            <div style={{ display:'flex', justifyContent:'center', padding:32 }}><div className="spinner" /></div>
+          ) : friends.length === 0 ? (
+            <div style={{ textAlign:'center', padding:32, color:'var(--ink2)' }}>
+              <div style={{ fontSize:40, marginBottom:10 }}>👥</div>
+              <div style={{ fontWeight:700 }}>No friends yet</div>
+              <div style={{ fontSize:13, marginTop:4 }}>Search to find and add players!</div>
+              <button className="btn btn-primary" style={{ marginTop:14 }} onClick={() => setTab('search')}>
+                Find Players
+              </button>
+            </div>
+          ) : friends.map(f => (
+            <div key={f.uid} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:'1px solid var(--edge)' }}>
+              <span style={{ fontSize:26 }}>{f.avatar || '🎯'}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:14 }}>{f.displayName}</div>
+                <div style={{ fontSize:11, color:'var(--ink2)', marginTop:2 }}>
+                  {f.wins || 0}W · {f.losses || 0}L
                 </div>
-                <div style={{ marginRight: 10 }}>
-                  {f.isOnline
-                    ? <div className="online-dot" />
-                    : <div className="offline-dot" />}
-                </div>
-                <button className="btn btn-ghost" style={{ padding: "5px 10px", fontSize: 11 }}
-                  onClick={() => handleRemove(f.uid)}>Remove</button>
               </div>
-            ))}
-          </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{
+                  width:8, height:8, borderRadius:'50%',
+                  background: f.isOnline ? 'var(--c1)' : 'var(--ink3)',
+                  boxShadow: f.isOnline ? '0 0 6px var(--c1)' : 'none'
+                }} />
+                <span style={{ fontSize:10, color:'var(--ink3)' }}>{f.isOnline ? 'Online' : 'Offline'}</span>
+              </div>
+              <button onClick={() => handleRemove(f.uid)}
+                style={{ background:'none', border:'2px solid var(--edge2)', borderRadius:6, padding:'4px 10px', fontSize:11, color:'var(--ink3)', cursor:'pointer' }}>
+                Remove
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Requests tab */}
-      {tab === "requests" && (
-        <div className="card" style={{ maxWidth: 440 }}>
-          <div>
-            {requests.length === 0 && (
-              <div style={{ textAlign: "center", padding: 32, color: "var(--ink2)" }}>No pending requests.</div>
-            )}
-            {requests.map(req => (
-              <div key={req.id} className="friend-row">
-                <div style={{ fontSize: 26 }}>🎯</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{req.fromName}</div>
-                  <div className="muted small">Wants to be friends</div>
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button className="btn btn-primary" style={{ padding: "6px 12px", fontSize: 11 }}
-                    onClick={() => handleAccept(req)}>✓ Accept</button>
-                  <button className="btn btn-ghost" style={{ padding: "6px 10px", fontSize: 11 }}
-                    onClick={() => handleDecline(req)}>✕</button>
-                </div>
+      {/* ── REQUESTS TAB ── */}
+      {tab === 'requests' && (
+        <div className="card" style={{ maxWidth:440 }}>
+          {requests.length === 0 ? (
+            <div style={{ textAlign:'center', padding:32, color:'var(--ink2)' }}>
+              <div style={{ fontSize:40, marginBottom:10 }}>📭</div>
+              <div style={{ fontWeight:700 }}>No pending requests</div>
+              <div style={{ fontSize:13, marginTop:4 }}>When someone adds you, it appears here.</div>
+            </div>
+          ) : requests.map(req => (
+            <div key={req.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px', borderBottom:'1px solid var(--edge)' }}>
+              <span style={{ fontSize:28 }}>🎯</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:14 }}>{req.fromName || 'Unknown'}</div>
+                <div style={{ fontSize:12, color:'var(--ink2)', marginTop:2 }}>Wants to be friends</div>
               </div>
-            ))}
-          </div>
+              <button onClick={() => handleAccept(req)}
+                style={{ background:'var(--c1)', color:'#000', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer', marginRight:4 }}>
+                ✓ Accept
+              </button>
+              <button onClick={() => handleDecline(req)}
+                style={{ background:'none', border:'2px solid var(--edge2)', borderRadius:7, padding:'8px 10px', fontSize:12, color:'var(--ink2)', cursor:'pointer' }}>
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Search tab */}
-      {tab === "search" && (
-        <div style={{ width: "100%", maxWidth: 440 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            <input type="text" placeholder="Search by name…" value={searchVal}
+      {/* ── SEARCH TAB ── */}
+      {tab === 'search' && (
+        <div style={{ width:'100%', maxWidth:440 }}>
+          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+            <input type="text" placeholder="Search username…"
+              value={searchVal}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && doSearch()}
-              style={{ flex: 1 }} />
-            <button className="btn btn-primary" onClick={doSearch} disabled={searching}>
-              {searching ? "…" : "🔍"}
+              onKeyDown={e => e.key === 'Enter' && doSearch()}
+              style={{ flex:1 }}
+            />
+            <button className="btn btn-primary" onClick={doSearch} disabled={searching} style={{ padding:'0 16px' }}>
+              {searching ? '…' : '🔍'}
             </button>
           </div>
+
           {results.length > 0 && (
             <div className="card">
               {results.map(u => (
-                <div key={u.uid} className="friend-row">
-                  <div style={{ fontSize: 26 }}>{u.avatar || "🎯"}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{u.displayName}</div>
-                    <div className="muted small">{u.wins || 0}W · {u.losses || 0}L</div>
+                <div key={u.uid} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:'1px solid var(--edge)' }}>
+                  <span style={{ fontSize:26 }}>{u.avatar || '🎯'}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:14 }}>{u.displayName}</div>
+                    <div style={{ fontSize:11, color:'var(--ink2)' }}>{u.wins || 0}W · {u.losses || 0}L</div>
                   </div>
-                  <button className="btn btn-primary" style={{ padding: "6px 12px", fontSize: 11 }}
-                    onClick={() => handleSendRequest(u)}>
+                  <button onClick={() => handleSend(u)}
+                    style={{ background:'var(--c4)', color:'#fff', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer' }}>
                     + Add
                   </button>
                 </div>
               ))}
             </div>
           )}
-          {results.length === 0 && searchVal && !searching && (
-            <div style={{ textAlign: "center", color: "var(--ink2)", padding: 20 }}>No players found.</div>
+          {searchVal && !searching && results.length === 0 && (
+            <div style={{ textAlign:'center', color:'var(--ink2)', padding:24, fontSize:14 }}>
+              No players found for "{searchVal}"
+            </div>
           )}
         </div>
       )}
