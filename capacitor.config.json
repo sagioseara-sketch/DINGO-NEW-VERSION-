@@ -1,0 +1,15 @@
+{
+  "appId": "com.kgames.dingo",
+  "appName": "DiNGo",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0d0d0f"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
