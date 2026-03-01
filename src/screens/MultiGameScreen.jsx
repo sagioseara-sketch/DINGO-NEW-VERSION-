@@ -1,137 +1,142 @@
 // src/screens/MultiGameScreen.jsx
-//
-// NEW GAME LOGIC:
-// - Both players share a single `calledNumbers` pool
-// - On your turn you tap a number on YOUR board — it marks on BOTH boards
-// - Lines are checked per-board (different layouts = different strategy)
-// - First to 5 complete lines wins; simultaneous = TIE
-// - Each player has 5 chances; missing a turn costs 1 chance
-// - 0 chances left = opponent wins automatically
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
   listenRoom, callNumber, missedTurn,
   setWinner, setTie, setPlayerExited,
-  sendChatMessage, requestRematch
+  sendChatMessage, requestRematch,
 } from '../firebase/roomService';
-import { countLines, genRandomBoard } from '../game/aiLogic';
+import { countLines } from '../game/aiLogic';
 import GameBoard from '../game/GameBoard';
 import WinOverlay from '../game/WinOverlay';
 import { getSFX } from '../sounds/sfxThemes';
 import { recordResult } from '../firebase/leaderboard';
 import { saveMatch } from '../firebase/history';
 
-const WIN_LINES  = 5;
-const MOVE_TIME  = 30;
+const WIN_LINES   = 5;
+const MOVE_TIME   = 30;
 const MAX_CHANCES = 5;
 const EMOJIS = ['👍','🔥','😂','😱','🎯','💀','🏆','😤','🤯','👏','😈','🫡','❤️','😎','🤑','💪'];
+const LINE_COLORS = ['#00ffcc','#ff2d55','#ffcc00','#7b61ff','#ffffff'];
 
-// ── Timer ring drawn as SVG arc ───────────────────────────────────
-function TimerRing({ timeLeft, maxTime = MOVE_TIME, size = 60, active }) {
-  const r    = (size - 6) / 2;
+const LLs = [
+  { id:'time',   icon:'⏰', tip:'+20s'  },
+  { id:'hint',   icon:'💡', tip:'Hint'  },
+  { id:'double', icon:'2️⃣', tip:'Pick 2'},
+  { id:'fifty',  icon:'🎯', tip:'50/50' },
+  { id:'shield', icon:'🛡️', tip:'Shield'},
+];
+
+function TimerRing({ timeLeft, maxTime = MOVE_TIME, size = 52, active }) {
+  const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
-  const pct  = active ? Math.max(0, timeLeft / maxTime) : 1;
-  const off  = circ * (1 - pct);
-  const col  = timeLeft <= 5 ? '#ff2d55' : timeLeft <= 10 ? '#ffcc00' : '#00ffcc';
+  const pct = active ? Math.max(0, timeLeft / maxTime) : 1;
+  const col = timeLeft <= 5 ? '#ff2d55' : timeLeft <= 10 ? '#ffcc00' : '#00ffcc';
   return (
-    <svg width={size} height={size} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+    <svg width={size} height={size} style={{ position:'absolute', top:0, left:0, pointerEvents:'none' }}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={4} />
       {active && (
-        <circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke={col} strokeWidth={4}
-          strokeDasharray={circ} strokeDashoffset={off}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size/2} ${size/2})`}
-          style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.4s' }}
-        />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={4}
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+          strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`}
+          style={{ transition:'stroke-dashoffset 1s linear, stroke 0.4s' }} />
       )}
     </svg>
   );
 }
 
-// ── Chances dots (hearts showing remaining lives) ─────────────────
-function ChancesDots({ count, max = MAX_CHANCES }) {
+function Chances({ count, max = MAX_CHANCES }) {
   return (
-    <div style={{ display: 'flex', gap: 3 }}>
+    <div style={{ display:'flex', gap:2 }}>
       {Array.from({ length: max }).map((_, i) => (
-        <span key={i} style={{ fontSize: 11, opacity: i < count ? 1 : 0.2 }}>❤️</span>
+        <span key={i} style={{ fontSize:10, opacity: i < count ? 1 : 0.18 }}>❤️</span>
       ))}
     </div>
   );
 }
 
-// ── Lifeline definitions ──────────────────────────────────────────
-const LLs = [
-  { id: 'time',   icon: '⏰', tip: '+20s' },
-  { id: 'hint',   icon: '💡', tip: 'Hint' },
-  { id: 'double', icon: '2️⃣', tip: 'Pick 2' },
-  { id: 'fifty',  icon: '🎯', tip: '50/50' },
-  { id: 'shield', icon: '🛡️', tip: 'Shield' },
-];
-
 export default function MultiGameScreen() {
   const { roomId }  = useParams();
   const { state }   = useLocation();
   const { user, profile } = useAuth();
-  const nav  = useNavigate();
-  const sfx  = getSFX();
+  const nav = useNavigate();
+  const sfx = getSFX();
 
   const role    = state?.role || 'p1';
   const oppRole = role === 'p1' ? 'p2' : 'p1';
-  // Each player has their own board layout (same 25 numbers, different positions)
-  const myBoard  = useRef(state?.board || genRandomBoard()).current;
 
-  const [room, setRoom]           = useState(null);
-  const [timer, setTimer]         = useState(MOVE_TIME);
-  const [winData, setWinData]     = useState(null);
+  const [room, setRoom]         = useState(null);
+  const [timer, setTimer]       = useState(MOVE_TIME);
+  const [winData, setWinData]   = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [emojiCD, setEmojiCD]     = useState(false);
-  const [cdSecs, setCdSecs]       = useState(0);
-  const [myBubble, setMyBubble]   = useState('');
+  const [emojiCD, setEmojiCD]   = useState(false);
+  const [cdSecs, setCdSecs]     = useState(0);
+  const [myBubble, setMyBubble] = useState('');
   const [oppBubble, setOppBubble] = useState('');
-  const [lifelines, setLifelines] = useState({ time: true, hint: true, double: true, fifty: true, shield: true });
+  const [lifelines, setLifelines] = useState({ time:true, hint:true, double:true, fifty:true, shield:true });
   const [doubleActive, setDouble] = useState(false);
   const [shieldActive, setShield] = useState(false);
-  const [hints, setHints]         = useState([]);
-  const [rematch, setRematch]     = useState({ p1: false, p2: false });
-  const [lineFlash, setLineFlash] = useState(0);
+  const [hints, setHints]       = useState([]);
+  // rematchState tracks whether both have clicked and the new room id if created
+  const [rematchState, setRematchState] = useState({ p1:false, p2:false, newRoomId:null });
+  const [rematchPending, setRematchPending] = useState(false);
 
-  const winHandled  = useRef(false);
-  const startTime   = useRef(Date.now());
-  const timerRef    = useRef(null);
-  const cdRef       = useRef(null);
-  const prevLines   = useRef(0);
-  const bubbleRefs  = useRef({});
-  const lastMsgTs   = useRef(0);
+  const winHandled = useRef(false);
+  const startTime  = useRef(Date.now());
+  const timerRef   = useRef(null);
+  const cdRef      = useRef(null);
+  const prevLines  = useRef(0);
+  const bubbleRefs = useRef({});
+  const lastMsgTs  = useRef(0);
+  // Store my board from Firebase for rematch room creation
+  const myBoardRef = useRef(state?.board || []);
 
-  // Derived state from Firebase room
+  // Derived state
   const gs            = room?.gameState;
   const calledNumbers = gs?.calledNumbers  || [];
+  const myBoard       = gs?.[`${role}Board`]    || myBoardRef.current;
   const oppBoard      = gs?.[`${oppRole}Board`] || [];
   const myLines       = gs?.[`${role}Lines`]    || 0;
   const oppLines      = gs?.[`${oppRole}Lines`] || 0;
-  const myChances     = gs?.[`${role}Chances`]    ?? MAX_CHANCES;
+  const myChances     = gs?.[`${role}Chances`]  ?? MAX_CHANCES;
   const oppChances    = gs?.[`${oppRole}Chances`] ?? MAX_CHANCES;
   const isMyTurn      = gs?.turn === role;
   const oppData       = room?.players?.[oppRole];
   const myData        = room?.players?.[role];
 
-  // ── Room listener ─────────────────────────────────────────────
+  // ── Room listener ────────────────────────────────────────────
   useEffect(() => {
     const unsub = listenRoom(roomId, data => {
       setRoom(data);
       if (!data?.gameState) return;
       const gs2 = data.gameState;
 
-      if (data.rematch) setRematch(data.rematch);
+      // ── REMATCH FIX: watch rematch.newRoomId ──────────────────
+      // When the room creator writes newRoomId, the listener fires here.
+      // The opponent (p2) sees it and navigates to the new room.
+      if (data.rematch) {
+        setRematchState(data.rematch);
+        if (data.rematch.newRoomId && winHandled.current) {
+          // Navigate to the new room — role stays the same (p1 stays p1, p2 stays p2)
+          // We pass a fresh board for the new game
+          const freshBoard = myBoardRef.current.length === 25
+            ? myBoardRef.current
+            : Array.from({ length: 25 }, (_, i) => i + 1);
+          unsub();
+          nav(`/game/${data.rematch.newRoomId}`, {
+            state: { role, board: freshBoard },
+            replace: true,
+          });
+          return;
+        }
+      }
 
       // Chat bubbles
       if (data.chat) {
-        const msgs = Object.values(data.chat).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        const msgs = Object.values(data.chat).sort((a, b) => (a.ts||0)-(b.ts||0));
         const last = msgs[msgs.length - 1];
-        if (last && (last.ts || 0) > lastMsgTs.current && (Date.now() - (last.ts || 0)) < 8000) {
+        if (last && (last.ts||0) > lastMsgTs.current && (Date.now()-(last.ts||0)) < 8000) {
           lastMsgTs.current = last.ts;
           if (last.sender === role) {
             setMyBubble(last.text);
@@ -139,181 +144,132 @@ export default function MultiGameScreen() {
             bubbleRefs.current.my = setTimeout(() => setMyBubble(''), 4000);
           } else {
             setOppBubble(last.text);
-            sfx.ping && sfx.ping();
+            sfx.ping?.();
             clearTimeout(bubbleRefs.current.opp);
             bubbleRefs.current.opp = setTimeout(() => setOppBubble(''), 4000);
           }
         }
       }
 
-      // Win / tie detection (handled from Firebase state, not locally)
+      // Win / tie
       if ((gs2.winner || gs2.tie) && !winHandled.current) {
         winHandled.current = true;
         clearInterval(timerRef.current);
-        const isTie = gs2.tie;
+        const isTie = !!gs2.tie;
         const iWon  = gs2.winner === role;
         setWinData({
-          won:  isTie ? null : iWon,
-          tie:  isTie,
+          won:   isTie ? null : iWon,
+          tie:   isTie,
           title: isTie ? '🤝 IT\'S A TIE!' : iWon ? '🎉 YOU WIN!' : '😔 YOU LOST!',
-          sub:   isTie ? 'Both of you get a point!'
+          sub:   isTie ? 'Both earn a point!'
                        : iWon ? ['Domination! 👑','Flawless! ⚡','Champion! 🏆'][Math.floor(Math.random()*3)]
                                : ['GG, rematch? 💪','They got lucky 😤','Next time! 🤝'][Math.floor(Math.random()*3)],
         });
-        if (isTie) sfx.win && sfx.win();
-        else iWon ? sfx.win() : sfx.lose();
-        handleMatchEnd(isTie, gs2.winner === role, gs2);
+        iWon || isTie ? sfx.win?.() : sfx.lose?.();
+        handleMatchEnd(isTie, iWon, gs2, data);
       }
 
       if (gs2[`${oppRole}Exited`] && !winHandled.current) {
         winHandled.current = true;
         clearInterval(timerRef.current);
-        setWinData({ won: true, tie: false, title: '🏆 OPPONENT LEFT', sub: 'You win by default!' });
-        sfx.win && sfx.win();
+        setWinData({ won:true, tie:false, title:'🏆 OPPONENT LEFT', sub:'You win by default!' });
+        sfx.win?.();
       }
     });
-    return () => unsub();
+    return () => { unsub(); clearInterval(timerRef.current); clearInterval(cdRef.current); };
   }, [roomId]);
 
-  // ── Line flash effect — triggers when my line count increases ──
+  // Line sound effect
   useEffect(() => {
-    if (myLines > prevLines.current) {
-      sfx.line && sfx.line();
-      setLineFlash(f => f + 1);
-      prevLines.current = myLines;
-    }
+    if (myLines > prevLines.current) { sfx.line?.(); prevLines.current = myLines; }
   }, [myLines]);
 
-  // ── Timer synced to Firebase turnStartedAt ─────────────────────
+  // Store my board in a ref so rematch can use it
+  useEffect(() => {
+    if (myBoard.length === 25) myBoardRef.current = myBoard;
+  }, [myBoard]);
+
+  // Timer
   useEffect(() => {
     if (!gs?.turnStartedAt || winData) return;
     clearInterval(timerRef.current);
     const elapsed = Math.floor((Date.now() - gs.turnStartedAt) / 1000);
-    const init    = Math.max(0, MOVE_TIME - elapsed);
+    const init = Math.max(0, MOVE_TIME - elapsed);
     setTimer(init);
-
     timerRef.current = setInterval(() => {
       setTimer(t => {
         if (t <= 1) {
           clearInterval(timerRef.current);
           if (isMyTurn && !winData && !winHandled.current) {
-            if (shieldActive) {
-              setShield(false);
-              setTimer(MOVE_TIME);
-            } else {
-              autoTimeout();
-            }
+            shieldActive ? (setShield(false), setTimer(MOVE_TIME)) : handleAutoTimeout();
           }
           return 0;
         }
         return t - 1;
       });
     }, 1000);
-
     return () => clearInterval(timerRef.current);
   }, [gs?.turnStartedAt, gs?.turn]);
 
-  // Auto-pick when timer expires — consumes one life
-  const autoTimeout = async () => {
-    const uncalled = Array.from({ length: 25 }, (_, i) => i + 1).filter(n => !calledNumbers.includes(n));
+  const handleAutoTimeout = async () => {
+    const uncalled = Array.from({ length:25 }, (_, i) => i+1).filter(n => !calledNumbers.includes(n));
     if (uncalled.length === 0) return;
-    const pick   = uncalled[Math.floor(Math.random() * uncalled.length)];
+    const pick = uncalled[Math.floor(Math.random() * uncalled.length)];
     const newCalled = [...calledNumbers, pick];
-    const newP1Lines = countLines(gs?.p1Board || myBoard, newCalled);
-    const newP2Lines = countLines(oppBoard.length ? oppBoard : [], newCalled);
+    const p1B = role === 'p1' ? myBoard : oppBoard;
+    const p2B = role === 'p2' ? myBoard : oppBoard;
+    const nP1 = countLines(p1B, newCalled);
+    const nP2 = countLines(p2B, newCalled);
     const newChances = myChances - 1;
-
-    // Check win/tie after auto-pick
-    if (newChances <= 0) {
-      // Out of chances — opponent wins
-      await setWinner(roomId, oppRole);
-      return;
-    }
-
-    if (newP1Lines >= WIN_LINES && newP2Lines >= WIN_LINES) {
-      await setTie(roomId);
-    } else if (newP1Lines >= WIN_LINES) {
-      await setWinner(roomId, 'p1');
-    } else if (newP2Lines >= WIN_LINES) {
-      await setWinner(roomId, 'p2');
-    } else {
-      await missedTurn(roomId, role, newCalled, newP1Lines, newP2Lines, newChances);
-    }
+    if (newChances <= 0) { await setWinner(roomId, oppRole); return; }
+    if (nP1 >= WIN_LINES && nP2 >= WIN_LINES) { await setTie(roomId); return; }
+    if (nP1 >= WIN_LINES) { await setWinner(roomId, 'p1'); return; }
+    if (nP2 >= WIN_LINES) { await setWinner(roomId, 'p2'); return; }
+    await missedTurn(roomId, role, newCalled, nP1, nP2, newChances);
   };
 
-  // ── Handle player picking a number ────────────────────────────
   const handlePick = async (num) => {
     if (winData || winHandled.current) return;
     if (!isMyTurn && !doubleActive) return;
     if (calledNumbers.includes(num)) return;
+    if (myBoard.length === 0) return;
     clearInterval(timerRef.current);
     setHints([]);
-    sfx.cross && sfx.cross();
-
-    // NEW: Add to shared calledNumbers pool
-    const newCalled  = [...calledNumbers, num];
-    // Recalculate lines for BOTH boards
-    const p1Board    = role === 'p1' ? myBoard : oppBoard;
-    const p2Board    = role === 'p2' ? myBoard : oppBoard;
-    const newP1Lines = countLines(p1Board.length ? p1Board : myBoard, newCalled);
-    const newP2Lines = countLines(p2Board.length ? p2Board : [], newCalled);
-
-    const firstOfDouble = doubleActive;
-    if (firstOfDouble) {
-      setDouble(false);
-      await callNumber(roomId, role, newCalled, newP1Lines, newP2Lines, true);
-      return; // Keep turn, player picks second number
-    }
-
-    // Check win/tie BEFORE calling Firebase so the result is atomic
+    sfx.cross?.();
+    const newCalled = [...calledNumbers, num];
+    const p1B = role === 'p1' ? myBoard : oppBoard;
+    const p2B = role === 'p2' ? myBoard : oppBoard;
+    const nP1 = countLines(p1B.length ? p1B : myBoard, newCalled);
+    const nP2 = countLines(p2B.length ? p2B : [], newCalled);
+    if (doubleActive) { setDouble(false); await callNumber(roomId, role, newCalled, nP1, nP2, true); return; }
     if (!winHandled.current) {
-      if (newP1Lines >= WIN_LINES && newP2Lines >= WIN_LINES) {
-        await callNumber(roomId, role, newCalled, newP1Lines, newP2Lines, false);
-        await setTie(roomId);
-        return;
-      } else if (newP1Lines >= WIN_LINES) {
-        await callNumber(roomId, role, newCalled, newP1Lines, newP2Lines, false);
-        await setWinner(roomId, 'p1');
-        return;
-      } else if (newP2Lines >= WIN_LINES) {
-        await callNumber(roomId, role, newCalled, newP1Lines, newP2Lines, false);
-        await setWinner(roomId, 'p2');
-        return;
-      }
+      if (nP1 >= WIN_LINES && nP2 >= WIN_LINES) { await callNumber(roomId, role, newCalled, nP1, nP2, false); await setTie(roomId); return; }
+      if (nP1 >= WIN_LINES) { await callNumber(roomId, role, newCalled, nP1, nP2, false); await setWinner(roomId, 'p1'); return; }
+      if (nP2 >= WIN_LINES) { await callNumber(roomId, role, newCalled, nP1, nP2, false); await setWinner(roomId, 'p2'); return; }
     }
-
-    await callNumber(roomId, role, newCalled, newP1Lines, newP2Lines, false);
+    await callNumber(roomId, role, newCalled, nP1, nP2, false);
   };
 
-  // ── Lifelines ─────────────────────────────────────────────────
   const useLifeline = (id) => {
-    if (!lifelines[id] || !isMyTurn || winData) return;
-    sfx.click && sfx.click();
+    if (!lifelines[id] || !isMyTurn || !!winData) return;
+    sfx.click?.();
     setLifelines(prev => ({ ...prev, [id]: false }));
-
     if (id === 'time')   setTimer(t => t + 20);
     if (id === 'shield') setShield(true);
     if (id === 'double') setDouble(true);
-
     if (id === 'hint' || id === 'fifty') {
       const uncalled = myBoard.filter(n => !calledNumbers.includes(n));
-      // Score each uncalled number by how many lines it would complete/advance
-      const scored = uncalled.map(n => {
-        const test = [...calledNumbers, n];
-        const lines = countLines(myBoard, test);
-        return { n, lines };
-      }).sort((a, b) => b.lines - a.lines);
-      const count = id === 'fifty' ? 2 : 1;
-      setHints(scored.slice(0, count).map(s => s.n));
+      const scored = uncalled.map(n => ({ n, lines: countLines(myBoard, [...calledNumbers, n]) }))
+        .sort((a, b) => b.lines - a.lines);
+      setHints(scored.slice(0, id === 'fifty' ? 2 : 1).map(s => s.n));
       setTimeout(() => setHints([]), 7000);
     }
   };
 
-  // ── Emoji sending with 3s cooldown ────────────────────────────
   const handleEmoji = async (em) => {
     if (emojiCD) return;
-    await sendChatMessage(roomId, { text: em, isEmoji: true, sender: role, senderName: profile?.displayName || 'Me' });
-    setShowEmoji(false); // Auto-close after sending
+    await sendChatMessage(roomId, { text:em, isEmoji:true, sender:role, senderName:profile?.displayName||'Me' });
+    setShowEmoji(false);
     setEmojiCD(true);
     let s = 3; setCdSecs(s);
     cdRef.current = setInterval(() => {
@@ -322,13 +278,13 @@ export default function MultiGameScreen() {
     }, 1000);
   };
 
-  const handleMatchEnd = async (isTie, iWon, gs2) => {
+  const handleMatchEnd = async (isTie, iWon, gs2, roomData) => {
     if (!user) return;
     const duration = Math.round((Date.now() - startTime.current) / 1000);
     try {
       await recordResult(user.uid, isTie ? false : iWon);
-      const p1 = room?.players?.p1;
-      const p2 = room?.players?.p2;
+      const p1 = roomData?.players?.p1;
+      const p2 = roomData?.players?.p2;
       if (p1 && p2 && role === 'p1') {
         await saveMatch({
           p1Uid: p1.uid, p2Uid: p2.uid,
@@ -341,270 +297,186 @@ export default function MultiGameScreen() {
     } catch (e) { console.error('matchEnd error:', e); }
   };
 
+  // ── REMATCH HANDLER ───────────────────────────────────────────
+  // requestRematch() in roomService now handles the race:
+  // - Marks my flag in Firebase
+  // - If both flags are true, creates the new room and writes newRoomId
+  // - The other player's listenRoom fires, sees newRoomId, and navigates
+  const handleRematch = async () => {
+    if (rematchPending) return;
+    setRematchPending(true);
+    const myPlayerData = {
+      uid:    user?.uid,
+      name:   profile?.displayName || 'Player',
+      avatar: profile?.avatar || '🎯',
+      role,
+    };
+    try {
+      const newId = await requestRematch(roomId, role, myBoardRef.current, myPlayerData);
+      if (newId) {
+        // I was the one who created the new room — navigate as p1
+        nav(`/game/${newId}`, { state: { role: 'p1', board: myBoardRef.current }, replace: true });
+      }
+      // else: wait — my listenRoom above will fire when the other player creates it
+    } catch (e) {
+      console.error('Rematch error:', e);
+      setRematchPending(false);
+    }
+  };
+
   const handleLeave = async () => {
     clearInterval(timerRef.current);
     await setPlayerExited(roomId, role);
     nav('/');
   };
 
-  useEffect(() => {
-    if (rematch.p1 && rematch.p2) nav('/room/create');
-  }, [rematch]);
-
-  // ── Render ────────────────────────────────────────────────────
   if (!room) return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap: 12 }}>
-      <div className="spinner" />
-      <div style={{ fontSize: 12, color: 'var(--ink2)' }}>Connecting to room…</div>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14 }}>
+      <div className="spinner" /><div style={{ fontSize:13, color:'var(--ink2)' }}>Connecting to room…</div>
     </div>
   );
 
-  const waiting = gs?.status === 'waiting';
-  const AV_SIZE = 52; // Smaller avatar to fit mobile header
+  if (gs?.status === 'waiting') return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14 }}>
+      <div className="spinner" /><div style={{ fontSize:13, color:'var(--ink2)' }}>Waiting for opponent…</div>
+      <button className="btn btn-ghost" onClick={handleLeave}>Cancel</button>
+    </div>
+  );
+
+  const AV = 48;
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
 
-      {/* ════ PLAYER HEADER — compact for mobile ═══════════════ */}
-      <div style={{
-        background: 'var(--panel)',
-        borderBottom: '2px solid var(--edge2)',
-        padding: '8px 10px 6px',
-        flexShrink: 0,
-      }}>
+      {/* ── COMPACT HEADER ─────────────────────────────── */}
+      <div style={{ background:'var(--panel)', borderBottom:'2px solid var(--edge2)', padding:'6px 8px', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:4 }}>
 
-        {/* Top row: my side | score | opp side */}
-        <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
-
-          {/* ── MY SIDE ── */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              {/* Avatar + timer ring */}
-              <div style={{ position:'relative', width:AV_SIZE, height:AV_SIZE, flexShrink:0 }}>
-                <div style={{
-                  width:AV_SIZE, height:AV_SIZE, borderRadius:'50%',
-                  background:'var(--panel2)', border:`2px solid ${isMyTurn ? 'var(--c1)' : 'var(--edge)'}`,
-                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:26,
-                  transition: 'border-color 0.3s',
-                }}>
+          {/* MY SIDE */}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <div style={{ position:'relative', width:AV, height:AV, flexShrink:0 }}>
+                <div style={{ width:AV, height:AV, borderRadius:'50%', background:'var(--panel2)', border:`2px solid ${isMyTurn ? 'var(--c1)' : 'var(--edge)'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, transition:'border-color 0.3s' }}>
                   {myData?.avatar || profile?.avatar || '🎯'}
                 </div>
-                <TimerRing timeLeft={timer} size={AV_SIZE} active={isMyTurn && !winData} />
-                {shieldActive && (
-                  <div style={{ position:'absolute', bottom:-2, right:-2, fontSize:11 }}>🛡️</div>
-                )}
+                <TimerRing timeLeft={timer} size={AV} active={isMyTurn && !winData} />
+                {shieldActive && <div style={{ position:'absolute', bottom:-2, right:-2, fontSize:10 }}>🛡️</div>}
               </div>
-
               <div style={{ flex:1, minWidth:0 }}>
-                {/* Name — clamp to available width */}
-                <div style={{ fontWeight:800, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:80 }}>
+                <div style={{ fontWeight:800, fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:70 }}>
                   {myData?.name || profile?.displayName || 'You'}
                 </div>
-                <div style={{ fontSize:10, color:'var(--ink2)' }}>{myLines}/{WIN_LINES} lines</div>
-                {isMyTurn && !winData && (
-                  <div style={{ fontSize:8, fontWeight:800, letterSpacing:1.5, textTransform:'uppercase', color:'var(--c1)', marginTop:1 }}>
-                    {doubleActive ? '2️⃣ Pick 2nd!' : `Your turn ${timer}s`}
-                  </div>
-                )}
+                <div style={{ fontSize:10, color:'var(--ink2)' }}>{myLines}/{WIN_LINES}</div>
+                {isMyTurn && !winData && <div style={{ fontSize:8, fontWeight:800, color:'var(--c1)', letterSpacing:1 }}>{doubleActive ? '2️⃣ Pick 2nd' : `${timer}s`}</div>}
               </div>
             </div>
-
-            {/* My speech bubble */}
-            {myBubble && (
-              <div style={{ marginTop:4, fontSize:16, background:'rgba(0,255,204,0.1)', border:'1px solid rgba(0,255,204,0.3)', borderRadius:8, padding:'2px 8px', display:'inline-block', maxWidth:'100%' }}>
-                {myBubble}
-              </div>
-            )}
-
-            {/* My lifelines */}
-            <div style={{ display:'flex', gap:3, marginTop:5, flexWrap:'wrap' }}>
+            {myBubble && <div style={{ marginTop:3, fontSize:14, background:'rgba(0,255,204,0.1)', border:'1px solid rgba(0,255,204,0.3)', borderRadius:8, padding:'2px 6px', display:'inline-block' }}>{myBubble}</div>}
+            <div style={{ display:'flex', gap:2, marginTop:3, flexWrap:'wrap' }}>
               {LLs.map(ll => (
-                <button key={ll.id} onClick={() => useLifeline(ll.id)}
-                  disabled={!lifelines[ll.id] || !isMyTurn || !!winData}
-                  title={ll.tip}
-                  style={{
-                    fontSize:13, padding:'2px 4px',
-                    background: lifelines[ll.id] ? 'var(--panel2)' : 'transparent',
-                    border: `2px solid ${lifelines[ll.id] ? 'var(--edge2)' : 'transparent'}`,
-                    borderRadius:5, cursor: lifelines[ll.id] && isMyTurn ? 'pointer' : 'default',
-                    opacity: lifelines[ll.id] ? (isMyTurn ? 1 : 0.35) : 0.12,
-                    WebkitTapHighlightColor:'transparent',
-                  }}>
+                <button key={ll.id} onClick={() => useLifeline(ll.id)} disabled={!lifelines[ll.id] || !isMyTurn || !!winData} title={ll.tip}
+                  style={{ fontSize:12, padding:'2px 3px', background: lifelines[ll.id] ? 'var(--panel2)' : 'transparent', border:`2px solid ${lifelines[ll.id] ? 'var(--edge2)' : 'transparent'}`, borderRadius:4, cursor: lifelines[ll.id] && isMyTurn ? 'pointer' : 'default', opacity: lifelines[ll.id] ? (isMyTurn ? 1 : 0.35) : 0.1, WebkitTapHighlightColor:'transparent' }}>
                   {ll.icon}
                 </button>
               ))}
             </div>
-
-            {/* My chances (hearts) */}
-            <div style={{ marginTop:4 }}>
-              <ChancesDots count={myChances} />
-            </div>
+            <div style={{ marginTop:2 }}><Chances count={myChances} /></div>
           </div>
 
-          {/* ── CENTER SCORE ── */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', paddingTop:4, flexShrink:0 }}>
-            <div style={{ fontFamily:"'Black Han Sans',sans-serif", fontSize:20, letterSpacing:1, lineHeight:1 }}>
+          {/* CENTER SCORE */}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0, minWidth:44, paddingTop:2 }}>
+            <div style={{ fontFamily:"'Black Han Sans',sans-serif", fontSize:20, lineHeight:1 }}>
               <span style={{ color:'var(--c1)' }}>{myLines}</span>
-              <span style={{ color:'var(--ink3)', margin:'0 2px' }}>:</span>
+              <span style={{ color:'var(--ink3)', margin:'0 1px' }}>:</span>
               <span style={{ color:'var(--c2)' }}>{oppLines}</span>
             </div>
-            <div style={{ fontSize:7, letterSpacing:2, textTransform:'uppercase', color:'var(--ink3)', fontWeight:700, marginTop:2 }}>SCORE</div>
-            <div style={{ fontSize:9, color:'var(--ink3)', marginTop:3, letterSpacing:0.5 }}>
-              #{roomId}
-            </div>
+            <div style={{ fontSize:7, letterSpacing:1.5, textTransform:'uppercase', color:'var(--ink3)', fontWeight:700 }}>#{roomId}</div>
           </div>
 
-          {/* ── OPP SIDE ── */}
+          {/* OPP SIDE */}
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6, flexDirection:'row-reverse' }}>
-              {/* Opp avatar + timer */}
-              <div style={{ position:'relative', width:AV_SIZE, height:AV_SIZE, flexShrink:0 }}>
-                <div style={{
-                  width:AV_SIZE, height:AV_SIZE, borderRadius:'50%',
-                  background:'var(--panel2)', border:`2px solid ${!isMyTurn ? 'var(--c2)' : 'var(--edge)'}`,
-                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:26,
-                  transition: 'border-color 0.3s',
-                }}>
+            <div style={{ display:'flex', alignItems:'center', gap:5, flexDirection:'row-reverse' }}>
+              <div style={{ position:'relative', width:AV, height:AV, flexShrink:0 }}>
+                <div style={{ width:AV, height:AV, borderRadius:'50%', background:'var(--panel2)', border:`2px solid ${!isMyTurn ? 'var(--c2)' : 'var(--edge)'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, transition:'border-color 0.3s' }}>
                   {oppData?.avatar || '🎯'}
                 </div>
-                <TimerRing timeLeft={timer} size={AV_SIZE} active={!isMyTurn && !winData} />
+                <TimerRing timeLeft={timer} size={AV} active={!isMyTurn && !winData} />
               </div>
-
               <div style={{ flex:1, minWidth:0, textAlign:'right' }}>
-                <div style={{ fontWeight:800, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:80, marginLeft:'auto' }}>
+                <div style={{ fontWeight:800, fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:70, marginLeft:'auto' }}>
                   {oppData?.name || 'Opponent'}
                 </div>
-                <div style={{ fontSize:10, color:'var(--ink2)' }}>{oppLines}/{WIN_LINES} lines</div>
-                {!isMyTurn && !winData && (
-                  <div style={{ fontSize:8, fontWeight:800, letterSpacing:1.5, textTransform:'uppercase', color:'var(--c2)', marginTop:1 }}>
-                    Their turn {timer}s
-                  </div>
-                )}
+                <div style={{ fontSize:10, color:'var(--ink2)' }}>{oppLines}/{WIN_LINES}</div>
+                {!isMyTurn && !winData && <div style={{ fontSize:8, fontWeight:800, color:'var(--c2)', letterSpacing:1 }}>{timer}s</div>}
               </div>
             </div>
-
-            {/* Opp speech bubble */}
-            {oppBubble && (
-              <div style={{ marginTop:4, fontSize:16, background:'rgba(255,45,85,0.1)', border:'1px solid rgba(255,45,85,0.3)', borderRadius:8, padding:'2px 8px', display:'flex', justifyContent:'flex-end' }}>
-                {oppBubble}
-              </div>
-            )}
-
-            {/* Opp lifeline indicators (greyed out — just for visual parity) */}
-            <div style={{ display:'flex', gap:3, marginTop:5, justifyContent:'flex-end' }}>
-              {LLs.map(ll => (
-                <div key={ll.id} style={{
-                  fontSize:13, padding:'2px 4px',
-                  background:'var(--panel2)', border:'2px solid var(--edge)',
-                  borderRadius:5, opacity:0.25,
-                }}>{ll.icon}</div>
-              ))}
+            {oppBubble && <div style={{ marginTop:3, fontSize:14, background:'rgba(255,45,85,0.1)', border:'1px solid rgba(255,45,85,0.3)', borderRadius:8, padding:'2px 6px', display:'flex', justifyContent:'flex-end' }}>{oppBubble}</div>}
+            <div style={{ display:'flex', gap:2, marginTop:3, justifyContent:'flex-end' }}>
+              {LLs.map(ll => <div key={ll.id} style={{ fontSize:12, padding:'2px 3px', background:'var(--panel2)', border:'2px solid var(--edge)', borderRadius:4, opacity:0.2 }}>{ll.icon}</div>)}
             </div>
-
-            {/* Opp chances */}
-            <div style={{ marginTop:4, display:'flex', justifyContent:'flex-end' }}>
-              <ChancesDots count={oppChances} />
-            </div>
+            <div style={{ marginTop:2, display:'flex', justifyContent:'flex-end' }}><Chances count={oppChances} /></div>
           </div>
         </div>
       </div>
 
-      {/* ════ BOARD AREA ════════════════════════════════════════ */}
-      <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'6px 10px' }}>
-
-        {/* Called numbers count */}
-        <div style={{ marginBottom:6, textAlign:'center' }}>
-          <div style={{ fontSize:11, color:'var(--ink2)', letterSpacing:0.5 }}>
-            {winData ? '🏁 Game Over'
-              : waiting ? '⏳ Waiting for opponent…'
-              : isMyTurn ? '👆 Your board — tap to call a number'
-              : "⏳ Opponent is choosing…"}
+      {/* ── BOARD ─────────────────────────────────────────── */}
+      <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 8px' }}>
+        <div style={{ marginBottom:5, textAlign:'center' }}>
+          <div style={{ fontSize:11, color:'var(--ink2)' }}>
+            {winData ? '🏁 Game Over' : isMyTurn ? '👆 Your turn — tap to call a number' : '⏳ Opponent choosing…'}
           </div>
-          <div style={{ fontSize:10, color:'var(--ink3)', marginTop:2 }}>
-            {calledNumbers.length} / 25 numbers called
-          </div>
-          {hints.length > 0 && (
-            <div style={{ fontSize:11, color:'var(--c3)', marginTop:3, fontWeight:700 }}>
-              💡 Try: {hints.join(' or ')}
-            </div>
-          )}
-          {doubleActive && (
-            <div style={{ fontSize:11, color:'var(--c3)', fontWeight:800, marginTop:3, animation:'blink 0.8s infinite' }}>
-              2️⃣ PICK YOUR 2ND NUMBER!
-            </div>
-          )}
+          <div style={{ fontSize:10, color:'var(--ink3)', marginTop:1 }}>{calledNumbers.length}/25 called</div>
+          {hints.length > 0 && <div style={{ fontSize:11, color:'var(--c3)', marginTop:2, fontWeight:700 }}>💡 Try: {hints.join(' or ')}</div>}
+          {doubleActive && <div style={{ fontSize:11, color:'var(--c3)', fontWeight:800, marginTop:2, animation:'blink 0.8s infinite' }}>2️⃣ PICK YOUR 2ND!</div>}
         </div>
 
-        {/* My board — only MY board is shown (opponent's board is private) */}
-        <GameBoard
-          board={myBoard}
-          selected={calledNumbers}  // Shared called numbers mark on MY board
-          onCellClick={handlePick}
-          disabled={(!isMyTurn && !doubleActive) || !!winData || waiting}
-          highlightCells={hints}
-        />
+        <GameBoard board={myBoard} selected={calledNumbers} onCellClick={handlePick}
+          disabled={(!isMyTurn && !doubleActive) || !!winData || myBoard.length === 0}
+          highlightCells={hints} />
 
-        {/* Line progress bar */}
-        <div style={{ marginTop:10, display:'flex', gap:5, alignItems:'center' }}>
+        <div style={{ marginTop:8, display:'flex', gap:4, alignItems:'center' }}>
           {Array.from({ length: WIN_LINES }).map((_, i) => (
-            <div key={i} style={{
-              width:32, height:7, borderRadius:4,
-              background: i < myLines ? 'var(--c1)' : 'var(--edge)',
-              boxShadow: i < myLines ? '0 0 8px var(--c1)88' : 'none',
-              transition:'all 0.4s ease',
-            }} />
+            <div key={i} style={{ width:28, height:6, borderRadius:3, background: i < myLines ? LINE_COLORS[Math.min(i, 4)] : 'var(--edge)', boxShadow: i < myLines ? `0 0 6px ${LINE_COLORS[i]}88` : 'none', transition:'all 0.4s' }} />
           ))}
-          <span style={{ fontSize:11, color:'var(--ink2)', marginLeft:4 }}>{myLines}/{WIN_LINES}</span>
+          <span style={{ fontSize:10, color:'var(--ink2)', marginLeft:3 }}>{myLines}/{WIN_LINES}</span>
         </div>
       </div>
 
-      {/* ════ EMOJI BAR ══════════════════════════════════════════ */}
-      <div style={{ background:'var(--panel)', borderTop:'2px solid var(--edge2)', padding:'6px 10px', flexShrink:0 }}>
+      {/* ── BOTTOM BAR with Leave Room button ────────────── */}
+      <div style={{ background:'var(--panel)', borderTop:'2px solid var(--edge2)', padding:'5px 8px', flexShrink:0 }}>
         {showEmoji && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:5, justifyContent:'center', paddingBottom:6 }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:3, justifyContent:'center', paddingBottom:5 }}>
             {EMOJIS.map(em => (
               <button key={em} onClick={() => handleEmoji(em)} disabled={emojiCD}
-                style={{
-                  fontSize:22, background:'none', border:'none', cursor:'pointer',
-                  padding:'3px 5px', borderRadius:6, opacity: emojiCD ? 0.3 : 1,
-                  WebkitTapHighlightColor:'transparent',
-                }}>{em}</button>
+                style={{ fontSize:19, background:'none', border:'none', cursor:'pointer', padding:'2px 3px', borderRadius:4, opacity:emojiCD?0.3:1, WebkitTapHighlightColor:'transparent' }}>
+                {em}
+              </button>
             ))}
           </div>
         )}
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <button onClick={() => !emojiCD && setShowEmoji(o => !o)} disabled={emojiCD}
-            style={{
-              background:'var(--panel2)', border:'2px solid var(--edge2)',
-              borderRadius:'var(--r)', padding:'7px 12px',
-              fontSize:12, fontWeight:700,
-              color: emojiCD ? 'var(--ink3)' : 'var(--ink)',
-              cursor: emojiCD ? 'not-allowed' : 'pointer',
-              WebkitTapHighlightColor:'transparent',
-            }}>
-            {emojiCD ? `⏱ ${cdSecs}s` : showEmoji ? '✕ Close' : '😊 React'}
+            style={{ background:'var(--panel2)', border:'2px solid var(--edge2)', borderRadius:'var(--r)', padding:'6px 10px', fontSize:11, fontWeight:700, color:emojiCD?'var(--ink3)':'var(--ink)', cursor:emojiCD?'not-allowed':'pointer', WebkitTapHighlightColor:'transparent' }}>
+            {emojiCD ? `⏱${cdSecs}s` : showEmoji ? '✕' : '😊'}
           </button>
           <div style={{ flex:1 }} />
+          {/* Always-visible Leave Room button */}
           <button onClick={handleLeave}
-            style={{
-              background:'transparent', border:'2px solid var(--c2)',
-              borderRadius:'var(--r)', padding:'7px 12px',
-              fontSize:12, fontWeight:700, color:'var(--c2)', cursor:'pointer',
-              WebkitTapHighlightColor:'transparent',
-            }}>
-            🚪 Leave
+            style={{ background:'transparent', border:'2px solid var(--c2)', borderRadius:'var(--r)', padding:'6px 12px', fontSize:11, fontWeight:700, color:'var(--c2)', cursor:'pointer', WebkitTapHighlightColor:'transparent' }}>
+            🚪 Leave Room
           </button>
         </div>
       </div>
 
-      {/* Win Overlay */}
+      {/* ── WIN OVERLAY ───────────────────────────────────── */}
       <WinOverlay
         show={!!winData}
         isWin={winData?.won}
+        tie={winData?.tie}
         title={winData?.title}
-        sub={winData?.sub}
-        onPlayAgain={() => requestRematch(roomId, role)}
+        sub={rematchPending ? '⏳ Waiting for opponent to accept rematch…' : winData?.sub}
+        onPlayAgain={handleRematch}
         onHome={handleLeave}
+        showPlayAgain={!rematchPending || !rematchState.newRoomId}
       />
     </div>
   );
