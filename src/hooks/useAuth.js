@@ -1,4 +1,3 @@
-// src/hooks/useAuth.js
 import { useState, useEffect, createContext, useContext } from "react";
 import { onAuthChange } from "../firebase/auth";
 import { getUser, setOnlineStatus } from "../firebase/userService";
@@ -32,7 +31,6 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    // Set offline on page leave
     const handleUnload = () => {
       if (user) setOnlineStatus(user.uid, false);
     };
