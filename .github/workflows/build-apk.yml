@@ -8,8 +8,9 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node 20
@@ -23,27 +24,32 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install & build React app
-        run: |
-          npm install
-          npm run build
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Install Capacitor
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Capacitor packages
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Add Android platform and sync
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "DiNGo" "com.kgames.dingo" --web-dir dist
-          npx cap add android
+          npx cap add android || true
           npx cap sync android
 
-      - name: Set gradlew permissions
+      - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Build debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: dingo-debug-apk
