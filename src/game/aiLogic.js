@@ -98,4 +98,7 @@ function getBotMove(board, selected, difficulty) {
   return uncalled[Math.floor(Math.random() * uncalled.length)];
 }
 
+// Export under both names — getBotMove is the internal name,
+// getAIMove is what BotGameScreen.jsx expects. Both point to the same function.
 export { getBotMove };
+export const getAIMove = getBotMove;
