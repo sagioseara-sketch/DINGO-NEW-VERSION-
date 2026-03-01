@@ -3,7 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
+# Sets permissions so the workflow can write to the gh-pages branch
 permissions:
   contents: write
 
@@ -14,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -25,8 +27,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # This action takes the dist/ folder and pushes it to the gh-pages branch.
+      # GitHub Pages then serves that branch as the live website.
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          # This file tells GitHub Pages NOT to run Jekyll processing,
+          # which would break Vite's output files
+          enable_jekyll: false
