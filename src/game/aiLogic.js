@@ -1,180 +1,101 @@
 // src/game/aiLogic.js
-// All 6 difficulty levels: easy, medium, hard, expert, nightmare, godmode
 
-const ALL_LINES = [];
-for (let r = 0; r < 5; r++) {
-  const b = r * 5;
-  ALL_LINES.push([b, b+1, b+2, b+3, b+4]);
-}
-for (let c = 0; c < 5; c++) {
-  ALL_LINES.push([c, c+5, c+10, c+15, c+20]);
-}
-ALL_LINES.push([0, 6, 12, 18, 24], [4, 8, 12, 16, 20]);
+// All 12 possible winning lines on a 5x5 bingo board (by cell index 0-24)
+export const ALL_LINES = [
+  // 5 rows
+  [0,1,2,3,4],
+  [5,6,7,8,9],
+  [10,11,12,13,14],
+  [15,16,17,18,19],
+  [20,21,22,23,24],
+  // 5 columns
+  [0,5,10,15,20],
+  [1,6,11,16,21],
+  [2,7,12,17,22],
+  [3,8,13,18,23],
+  [4,9,14,19,24],
+  // 2 diagonals
+  [0,6,12,18,24],
+  [4,8,12,16,20],
+];
 
+// Generate a random 5x5 board containing numbers 1-25
 export function genRandomBoard() {
-  const arr = Array.from({ length: 25 }, (_, i) => i + 1);
-  for (let i = arr.length - 1; i > 0; i--) {
+  const nums = Array.from({ length: 25 }, (_, i) => i + 1);
+  for (let i = nums.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [nums[i], nums[j]] = [nums[j], nums[i]];
   }
-  return arr;
+  return nums;
 }
 
+// Count how many complete lines a board has, given a set of called/selected numbers.
+// Works for both the new shared-calledNumbers system and the old selected system.
 export function countLines(board, selected) {
-  return ALL_LINES.filter(line =>
-    line.every(i => selected.includes(board[i]))
-  ).length;
+  const marked = new Set(selected);
+  return ALL_LINES.filter(line => line.every(idx => marked.has(board[idx]))).length;
 }
 
+// Returns the COMPLETE line definitions (arrays of cell indices) that are fully marked.
+// Used for glow/coloring effects — each returned line can have its own color.
+export function getCompletedLines(board, selected) {
+  const marked = new Set(selected);
+  return ALL_LINES.filter(line => line.every(idx => marked.has(board[idx])));
+}
+
+// Returns a flat set of board cell indices that belong to any complete line.
+// Used by GameBoard to highlight winning cells.
 export function getWinCellIndices(board, selected) {
-  const winning = new Set();
-  ALL_LINES.forEach(line => {
-    if (line.every(i => selected.includes(board[i]))) {
-      line.forEach(i => winning.add(i));
+  const cells = new Set();
+  getCompletedLines(board, selected).forEach(line => line.forEach(i => cells.add(i)));
+  return [...cells];
+}
+
+// ── AI Bot Logic ─────────────────────────────────────────────────
+
+function scoreMove(board, selected, num) {
+  const testSelected = [...selected, num];
+  const marked = new Set(testSelected);
+  let score = 0;
+  for (const line of ALL_LINES) {
+    const filled = line.filter(i => marked.has(board[i])).length;
+    if (filled === 5) score += 1000000;
+    else if (filled === 4) score += 10000;
+    else if (filled === 3) score += 100;
+    else if (filled === 2) score += 5;
+  }
+  return score;
+}
+
+function getBotMove(board, selected, difficulty) {
+  const uncalled = board.filter(n => !selected.includes(n));
+  if (uncalled.length === 0) return null;
+
+  if (difficulty === 'easy') {
+    return uncalled[Math.floor(Math.random() * uncalled.length)];
+  }
+
+  if (difficulty === 'medium') {
+    // Pick the move with highest line score
+    return uncalled.reduce((best, num) =>
+      scoreMove(board, selected, num) > scoreMove(board, selected, best) ? num : best,
+      uncalled[0]
+    );
+  }
+
+  if (difficulty === 'hard' || difficulty === 'expert' || difficulty === 'nightmare' || difficulty === 'godmode') {
+    // Check for immediate win
+    for (const num of uncalled) {
+      if (countLines(board, [...selected, num]) >= 5) return num;
     }
-  });
-  return [...winning];
-}
-
-function available(called) {
-  return Array.from({ length: 25 }, (_, i) => i + 1).filter(n => !called.includes(n));
-}
-
-function aiEasy(called, _playerBoard, botBoard) {
-  const avail = available(called);
-  return avail[Math.floor(Math.random() * avail.length)];
-}
-
-function aiMedium(called, playerBoard, botBoard) {
-  const avail = available(called);
-  const scores = {};
-  avail.forEach(n => {
-    scores[n] = 0;
-    const botIdx = botBoard.indexOf(n);
-    ALL_LINES.forEach(line => {
-      if (line.includes(botIdx)) {
-        const cnt = line.filter(i => called.includes(botBoard[i])).length;
-        scores[n] += cnt * 10;
-      }
-    });
-  });
-  return avail.reduce((b, n) => scores[n] > scores[b] ? n : b, avail[0]);
-}
-
-function aiHard(called, playerBoard, botBoard) {
-  const avail = available(called);
-  const scores = {};
-  avail.forEach(n => {
-    scores[n] = 0;
-    const botIdx    = botBoard.indexOf(n);
-    const playerIdx = playerBoard.indexOf(n);
-    ALL_LINES.forEach(line => {
-      if (line.includes(botIdx)) {
-        const cnt = line.filter(i => called.includes(botBoard[i])).length;
-        if      (cnt === 4) scores[n] += 200000;
-        else if (cnt === 3) scores[n] += 15000;
-        else if (cnt === 2) scores[n] += 1500;
-        else if (cnt === 1) scores[n] += 150;
-        else                scores[n] += 15;
-      }
-      if (line.includes(playerIdx)) {
-        const cnt = line.filter(i => called.includes(playerBoard[i])).length;
-        if      (cnt === 4) scores[n] += 180000;
-        else if (cnt === 3) scores[n] += 30000;
-        else if (cnt === 2) scores[n] += 3000;
-        else if (cnt === 1) scores[n] += 300;
-        else                scores[n] += 30;
-      }
-    });
-    const newCalled = [...called, n];
-    const pHits = playerBoard.map(num => newCalled.includes(num) ? 1 : 0);
-    let pNewLines = 0;
-    ALL_LINES.forEach(line => { if (line.every(i => pHits[i])) pNewLines++; });
-    scores[n] -= pNewLines * 120000;
-  });
-  return avail.reduce((b, n) => scores[n] > scores[b] ? n : b, avail[0]);
-}
-
-function aiExpert(called, playerBoard, botBoard) {
-  const avail = available(called);
-  // Win immediately
-  for (const line of ALL_LINES) {
-    const vals = line.map(i => botBoard[i]);
-    const uncalled = vals.filter(v => !called.includes(v));
-    if (uncalled.length === 1 && avail.includes(uncalled[0]) &&
-        vals.filter(v => called.includes(v)).length === 4) return uncalled[0];
+    // Pick highest score move
+    return uncalled.reduce((best, num) =>
+      scoreMove(board, selected, num) > scoreMove(board, selected, best) ? num : best,
+      uncalled[0]
+    );
   }
-  // Block player win
-  for (const line of ALL_LINES) {
-    const vals = line.map(i => playerBoard[i]);
-    const uncalled = vals.filter(v => !called.includes(v));
-    if (uncalled.length === 1 && avail.includes(uncalled[0]) &&
-        vals.filter(v => called.includes(v)).length === 4) return uncalled[0];
-  }
-  return aiHard(called, playerBoard, botBoard);
+
+  return uncalled[Math.floor(Math.random() * uncalled.length)];
 }
 
-function aiNightmare(called, playerBoard, botBoard) {
-  const avail = available(called);
-  // Win immediately
-  for (const line of ALL_LINES) {
-    const vals = line.map(i => botBoard[i]);
-    const uncalled = vals.filter(v => !called.includes(v));
-    if (uncalled.length === 1 && avail.includes(uncalled[0]) &&
-        vals.filter(v => called.includes(v)).length === 4) return uncalled[0];
-  }
-  // Block player win
-  for (const line of ALL_LINES) {
-    const vals = line.map(i => playerBoard[i]);
-    const uncalled = vals.filter(v => !called.includes(v));
-    if (uncalled.length === 1 && avail.includes(uncalled[0]) &&
-        vals.filter(v => called.includes(v)).length === 4) return uncalled[0];
-  }
-  function score(calledArr) {
-    let s = 0;
-    ALL_LINES.forEach(line => {
-      const bCnt = line.filter(i => calledArr.includes(botBoard[i])).length;
-      const pCnt = line.filter(i => calledArr.includes(playerBoard[i])).length;
-      if      (bCnt === 5) s += 1000000;
-      else if (bCnt === 4) s += 50000;
-      else if (bCnt === 3) s += 2000;
-      else if (bCnt === 2) s += 200;
-      if      (pCnt === 5) s -= 800000;
-      else if (pCnt === 4) s -= 40000;
-      else if (pCnt === 3) s -= 1500;
-    });
-    return s;
-  }
-  let best = -Infinity, bestMove = avail[0];
-  avail.forEach(n => {
-    const nc = [...called, n];
-    const myGain = score(nc) - score(called);
-    const oppMoves = avail.filter(x => x !== n).slice(0, 8);
-    let oppBest = -Infinity;
-    oppMoves.forEach(on => {
-      const oc = [...nc, on];
-      const og = score(oc) - score(nc);
-      if (og > oppBest) oppBest = og;
-    });
-    const s = myGain - oppBest * 0.85;
-    if (s > best) { best = s; bestMove = n; }
-  });
-  return bestMove;
-}
-
-function aiGodmode(called, playerBoard, botBoard) {
-  // Godmode: same as nightmare but always wins if there's a forced win path
-  return aiNightmare(called, playerBoard, botBoard);
-}
-
-export function getAIMove(level, called, playerBoard, botBoard) {
-  switch (level) {
-    case "easy":      return aiEasy(called, playerBoard, botBoard);
-    case "medium":    return aiMedium(called, playerBoard, botBoard);
-    case "hard":      return aiHard(called, playerBoard, botBoard);
-    case "expert":    return aiExpert(called, playerBoard, botBoard);
-    case "nightmare": return aiNightmare(called, playerBoard, botBoard);
-    case "godmode":   return aiGodmode(called, playerBoard, botBoard);
-    default:          return aiEasy(called, playerBoard, botBoard);
-  }
-}
+export { getBotMove };
