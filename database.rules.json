@@ -9,16 +9,24 @@
     "online": {
       ".read": "auth != null",
       "$uid": {
+        // Only the owner can write their own presence entry.
+        // This is enforced here but the real cleanup happens server-side
+        // via onDisconnect() registered from the client.
         ".write": "auth != null && auth.uid === $uid"
       }
     },
     "queue": {
+      // Any authenticated user can read the entire queue (needed to find opponents)
+      // and write to any entry (needed for the host to notify the matched player).
       ".read":  "auth != null",
       ".write": "auth != null"
     },
     "invites": {
-      "$uid": {
-        ".read":  "auth != null && auth.uid === $uid",
+      "$toUid": {
+        // Only the recipient can read their own invites.
+        ".read": "auth != null && auth.uid === $toUid",
+        // Any authenticated user can write invites to any inbox
+        // (so friends can send you challenges).
         ".write": "auth != null"
       }
     }
