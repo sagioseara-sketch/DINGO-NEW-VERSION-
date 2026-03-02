@@ -1,5 +1,21 @@
 // src/screens/MultiGameScreen.jsx
-import { useState, useEffect, useRef } from 'react';
+//
+// REFRESH FIX:
+// Previously the player's role was read exclusively from `useLocation().state`,
+// which is a React Router in-memory value. On a hard refresh (F5 / mobile browser
+// reload), navigation state is lost and the screen would show `role = 'p1'` for
+// everyone — meaning p2 would see the wrong board and turn indicators.
+//
+// Fix: `useMemo` derives the role from the Firebase room data once it loads.
+// `state?.role` is used as the initial hint (fast, available before Firebase responds)
+// but the final authoritative role always comes from matching `user.uid` against
+// `room.players.p1.uid` or `room.players.p2.uid` in Firebase.
+//
+// LEAVE ROOM FIX:
+// The null-room loading state now shows a Back button so the player is never
+// stuck on an infinite spinner if the room data can't be read.
+
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -29,10 +45,10 @@ const LLs = [
 ];
 
 function TimerRing({ timeLeft, maxTime = MOVE_TIME, size = 52, active }) {
-  const r = (size - 6) / 2;
+  const r    = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
-  const pct = active ? Math.max(0, timeLeft / maxTime) : 1;
-  const col = timeLeft <= 5 ? '#ff2d55' : timeLeft <= 10 ? '#ffcc00' : '#00ffcc';
+  const pct  = active ? Math.max(0, timeLeft / maxTime) : 1;
+  const col  = timeLeft <= 5 ? '#ff2d55' : timeLeft <= 10 ? '#ffcc00' : '#00ffcc';
   return (
     <svg width={size} height={size} style={{ position:'absolute', top:0, left:0, pointerEvents:'none' }}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={4} />
@@ -57,29 +73,29 @@ function Chances({ count, max = MAX_CHANCES }) {
 }
 
 export default function MultiGameScreen() {
-  const { roomId }  = useParams();
-  const { state }   = useLocation();
-  const { user, profile } = useAuth();
-  const nav = useNavigate();
-  const sfx = getSFX();
+  const { roomId }          = useParams();
+  const { state }           = useLocation();
+  const { user, profile }   = useAuth();
+  const nav                 = useNavigate();
+  const sfx                 = getSFX();
 
-  const role    = state?.role || 'p1';
-  const oppRole = role === 'p1' ? 'p2' : 'p1';
+  // Role resolution: use location state as fast initial value, but override with
+  // Firebase once the room loads. This fixes the refresh bug for p2 players.
+  const stateRole = state?.role; // undefined on hard refresh
 
-  const [room, setRoom]         = useState(null);
-  const [timer, setTimer]       = useState(MOVE_TIME);
-  const [winData, setWinData]   = useState(null);
+  const [room, setRoom]           = useState(null);
+  const [timer, setTimer]         = useState(MOVE_TIME);
+  const [winData, setWinData]     = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [emojiCD, setEmojiCD]   = useState(false);
-  const [cdSecs, setCdSecs]     = useState(0);
-  const [myBubble, setMyBubble] = useState('');
+  const [emojiCD, setEmojiCD]     = useState(false);
+  const [cdSecs, setCdSecs]       = useState(0);
+  const [myBubble, setMyBubble]   = useState('');
   const [oppBubble, setOppBubble] = useState('');
   const [lifelines, setLifelines] = useState({ time:true, hint:true, double:true, fifty:true, shield:true });
   const [doubleActive, setDouble] = useState(false);
   const [shieldActive, setShield] = useState(false);
-  const [hints, setHints]       = useState([]);
-  // rematchState tracks whether both have clicked and the new room id if created
-  const [rematchState, setRematchState] = useState({ p1:false, p2:false, newRoomId:null });
+  const [hints, setHints]         = useState([]);
+  const [rematchState, setRematchState]     = useState({ p1:false, p2:false, newRoomId:null });
   const [rematchPending, setRematchPending] = useState(false);
 
   const winHandled = useRef(false);
@@ -89,15 +105,26 @@ export default function MultiGameScreen() {
   const prevLines  = useRef(0);
   const bubbleRefs = useRef({});
   const lastMsgTs  = useRef(0);
-  // Store my board from Firebase for rematch room creation
   const myBoardRef = useRef(state?.board || []);
 
-  // Derived state
+  // ── ROLE DERIVATION ──────────────────────────────────────────────────────────
+  // Authoritative role comes from matching uid against Firebase players data.
+  // Falls back to stateRole (pre-refresh) or 'p1' if both are unavailable.
+  const role = useMemo(() => {
+    if (!room || !user) return stateRole || 'p1';
+    if (room.players?.p1?.uid === user.uid) return 'p1';
+    if (room.players?.p2?.uid === user.uid) return 'p2';
+    return stateRole || 'p1'; // Shouldn't reach here in practice
+  }, [room, user, stateRole]);
+
+  const oppRole = role === 'p1' ? 'p2' : 'p1';
+
+  // Derived state from Firebase room
   const gs            = room?.gameState;
-  const calledNumbers = gs?.calledNumbers  || [];
-  const myBoard       = gs?.[`${role}Board`]    || myBoardRef.current;
+  const calledNumbers = gs?.calledNumbers      || [];
+  const myBoard       = gs?.[`${role}Board`]   || myBoardRef.current;
   const oppBoard      = gs?.[`${oppRole}Board`] || [];
-  const myLines       = gs?.[`${role}Lines`]    || 0;
+  const myLines       = gs?.[`${role}Lines`]   || 0;
   const oppLines      = gs?.[`${oppRole}Lines`] || 0;
   const myChances     = gs?.[`${role}Chances`]  ?? MAX_CHANCES;
   const oppChances    = gs?.[`${oppRole}Chances`] ?? MAX_CHANCES;
@@ -105,21 +132,17 @@ export default function MultiGameScreen() {
   const oppData       = room?.players?.[oppRole];
   const myData        = room?.players?.[role];
 
-  // ── Room listener ────────────────────────────────────────────
+  // ── Room listener ─────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = listenRoom(roomId, data => {
       setRoom(data);
       if (!data?.gameState) return;
       const gs2 = data.gameState;
 
-      // ── REMATCH FIX: watch rematch.newRoomId ──────────────────
-      // When the room creator writes newRoomId, the listener fires here.
-      // The opponent (p2) sees it and navigates to the new room.
+      // Watch rematch.newRoomId — when p1 creates the rematch room, p2 navigates here
       if (data.rematch) {
         setRematchState(data.rematch);
         if (data.rematch.newRoomId && winHandled.current) {
-          // Navigate to the new room — role stays the same (p1 stays p1, p2 stays p2)
-          // We pass a fresh board for the new game
           const freshBoard = myBoardRef.current.length === 25
             ? myBoardRef.current
             : Array.from({ length: 25 }, (_, i) => i + 1);
@@ -134,9 +157,9 @@ export default function MultiGameScreen() {
 
       // Chat bubbles
       if (data.chat) {
-        const msgs = Object.values(data.chat).sort((a, b) => (a.ts||0)-(b.ts||0));
+        const msgs = Object.values(data.chat).sort((a, b) => (a.ts||0) - (b.ts||0));
         const last = msgs[msgs.length - 1];
-        if (last && (last.ts||0) > lastMsgTs.current && (Date.now()-(last.ts||0)) < 8000) {
+        if (last && (last.ts||0) > lastMsgTs.current && (Date.now() - (last.ts||0)) < 8000) {
           lastMsgTs.current = last.ts;
           if (last.sender === role) {
             setMyBubble(last.text);
@@ -160,10 +183,12 @@ export default function MultiGameScreen() {
         setWinData({
           won:   isTie ? null : iWon,
           tie:   isTie,
-          title: isTie ? '🤝 IT\'S A TIE!' : iWon ? '🎉 YOU WIN!' : '😔 YOU LOST!',
-          sub:   isTie ? 'Both earn a point!'
-                       : iWon ? ['Domination! 👑','Flawless! ⚡','Champion! 🏆'][Math.floor(Math.random()*3)]
-                               : ['GG, rematch? 💪','They got lucky 😤','Next time! 🤝'][Math.floor(Math.random()*3)],
+          title: isTie ? "🤝 IT'S A TIE!" : iWon ? '🎉 YOU WIN!' : '😔 YOU LOST!',
+          sub:   isTie
+            ? 'Both earn a point!'
+            : iWon
+              ? ['Domination! 👑','Flawless! ⚡','Champion! 🏆'][Math.floor(Math.random()*3)]
+              : ['GG, rematch? 💪','They got lucky 😤','Next time! 🤝'][Math.floor(Math.random()*3)],
         });
         iWon || isTie ? sfx.win?.() : sfx.lose?.();
         handleMatchEnd(isTie, iWon, gs2, data);
@@ -177,14 +202,14 @@ export default function MultiGameScreen() {
       }
     });
     return () => { unsub(); clearInterval(timerRef.current); clearInterval(cdRef.current); };
-  }, [roomId]);
+  }, [roomId]); // role not in deps — derived from room data, not stale closure
 
   // Line sound effect
   useEffect(() => {
     if (myLines > prevLines.current) { sfx.line?.(); prevLines.current = myLines; }
   }, [myLines]);
 
-  // Store my board in a ref so rematch can use it
+  // Keep myBoardRef in sync with Firebase board once loaded
   useEffect(() => {
     if (myBoard.length === 25) myBoardRef.current = myBoard;
   }, [myBoard]);
@@ -194,7 +219,7 @@ export default function MultiGameScreen() {
     if (!gs?.turnStartedAt || winData) return;
     clearInterval(timerRef.current);
     const elapsed = Math.floor((Date.now() - gs.turnStartedAt) / 1000);
-    const init = Math.max(0, MOVE_TIME - elapsed);
+    const init    = Math.max(0, MOVE_TIME - elapsed);
     setTimer(init);
     timerRef.current = setInterval(() => {
       setTimer(t => {
@@ -259,7 +284,8 @@ export default function MultiGameScreen() {
     if (id === 'double') setDouble(true);
     if (id === 'hint' || id === 'fifty') {
       const uncalled = myBoard.filter(n => !calledNumbers.includes(n));
-      const scored = uncalled.map(n => ({ n, lines: countLines(myBoard, [...calledNumbers, n]) }))
+      const scored   = uncalled
+        .map(n => ({ n, lines: countLines(myBoard, [...calledNumbers, n]) }))
         .sort((a, b) => b.lines - a.lines);
       setHints(scored.slice(0, id === 'fifty' ? 2 : 1).map(s => s.n));
       setTimeout(() => setHints([]), 7000);
@@ -285,11 +311,12 @@ export default function MultiGameScreen() {
       await recordResult(user.uid, isTie ? false : iWon);
       const p1 = roomData?.players?.p1;
       const p2 = roomData?.players?.p2;
+      // Only p1 saves the match record to avoid duplicates
       if (p1 && p2 && role === 'p1') {
         await saveMatch({
-          p1Uid: p1.uid, p2Uid: p2.uid,
-          p1Name: p1.name, p2Name: p2.name,
-          winner: isTie ? null : gs2.winner === 'p1' ? p1.uid : p2.uid,
+          p1Uid:   p1.uid,    p2Uid:  p2.uid,
+          p1Name:  p1.name,   p2Name: p2.name,
+          winner:  isTie ? null : gs2.winner === 'p1' ? p1.uid : p2.uid,
           p1Lines: gs2.p1Lines, p2Lines: gs2.p2Lines,
           duration, mode: 'multiplayer',
         });
@@ -297,27 +324,21 @@ export default function MultiGameScreen() {
     } catch (e) { console.error('matchEnd error:', e); }
   };
 
-  // ── REMATCH HANDLER ───────────────────────────────────────────
-  // requestRematch() in roomService now handles the race:
-  // - Marks my flag in Firebase
-  // - If both flags are true, creates the new room and writes newRoomId
-  // - The other player's listenRoom fires, sees newRoomId, and navigates
   const handleRematch = async () => {
     if (rematchPending) return;
     setRematchPending(true);
     const myPlayerData = {
       uid:    user?.uid,
       name:   profile?.displayName || 'Player',
-      avatar: profile?.avatar || '🎯',
+      avatar: profile?.avatar      || '🎯',
       role,
     };
     try {
       const newId = await requestRematch(roomId, role, myBoardRef.current, myPlayerData);
       if (newId) {
-        // I was the one who created the new room — navigate as p1
         nav(`/game/${newId}`, { state: { role: 'p1', board: myBoardRef.current }, replace: true });
       }
-      // else: wait — my listenRoom above will fire when the other player creates it
+      // null → wait for opponent to create — listenRoom above will fire when they do
     } catch (e) {
       console.error('Rematch error:', e);
       setRematchPending(false);
@@ -326,20 +347,30 @@ export default function MultiGameScreen() {
 
   const handleLeave = async () => {
     clearInterval(timerRef.current);
-    await setPlayerExited(roomId, role);
+    await setPlayerExited(roomId, role).catch(() => {});
     nav('/');
   };
 
+  // ── Loading state: room data not yet arrived ──────────────────────────────
+  // Show a back button so the player is never stuck if the room is gone
   if (!room) return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14 }}>
-      <div className="spinner" /><div style={{ fontSize:13, color:'var(--ink2)' }}>Connecting to room…</div>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14, background:'var(--bg)' }}>
+      <div className="spinner" />
+      <div style={{ fontSize:13, color:'var(--ink2)' }}>Connecting to room…</div>
+      <button className="btn btn-ghost" style={{ marginTop:8 }} onClick={() => nav('/')}>
+        ← Back to Home
+      </button>
     </div>
   );
 
+  // ── Waiting for p2 to join (only p1 sees this) ────────────────────────────
   if (gs?.status === 'waiting') return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14 }}>
-      <div className="spinner" /><div style={{ fontSize:13, color:'var(--ink2)' }}>Waiting for opponent…</div>
-      <button className="btn btn-ghost" onClick={handleLeave}>Cancel</button>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:14, background:'var(--bg)' }}>
+      <div className="spinner" />
+      <div style={{ fontSize:13, color:'var(--ink2)' }}>Waiting for opponent…</div>
+      <button className="btn btn-ghost" onClick={handleLeave}>
+        🚪 Cancel & Leave
+      </button>
     </div>
   );
 
@@ -348,7 +379,7 @@ export default function MultiGameScreen() {
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
 
-      {/* ── COMPACT HEADER ─────────────────────────────── */}
+      {/* ── COMPACT HEADER ──────────────────────────────────────── */}
       <div style={{ background:'var(--panel)', borderBottom:'2px solid var(--edge2)', padding:'6px 8px', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:4 }}>
 
@@ -418,7 +449,7 @@ export default function MultiGameScreen() {
         </div>
       </div>
 
-      {/* ── BOARD ─────────────────────────────────────────── */}
+      {/* ── BOARD ───────────────────────────────────────────────── */}
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 8px' }}>
         <div style={{ marginBottom:5, textAlign:'center' }}>
           <div style={{ fontSize:11, color:'var(--ink2)' }}>
@@ -429,9 +460,13 @@ export default function MultiGameScreen() {
           {doubleActive && <div style={{ fontSize:11, color:'var(--c3)', fontWeight:800, marginTop:2, animation:'blink 0.8s infinite' }}>2️⃣ PICK YOUR 2ND!</div>}
         </div>
 
-        <GameBoard board={myBoard} selected={calledNumbers} onCellClick={handlePick}
+        <GameBoard
+          board={myBoard}
+          selected={calledNumbers}
+          onCellClick={handlePick}
           disabled={(!isMyTurn && !doubleActive) || !!winData || myBoard.length === 0}
-          highlightCells={hints} />
+          highlightCells={hints}
+        />
 
         <div style={{ marginTop:8, display:'flex', gap:4, alignItems:'center' }}>
           {Array.from({ length: WIN_LINES }).map((_, i) => (
@@ -441,7 +476,7 @@ export default function MultiGameScreen() {
         </div>
       </div>
 
-      {/* ── BOTTOM BAR with Leave Room button ────────────── */}
+      {/* ── BOTTOM BAR — leave button always visible for BOTH players ── */}
       <div style={{ background:'var(--panel)', borderTop:'2px solid var(--edge2)', padding:'5px 8px', flexShrink:0 }}>
         {showEmoji && (
           <div style={{ display:'flex', flexWrap:'wrap', gap:3, justifyContent:'center', paddingBottom:5 }}>
@@ -459,7 +494,7 @@ export default function MultiGameScreen() {
             {emojiCD ? `⏱${cdSecs}s` : showEmoji ? '✕' : '😊'}
           </button>
           <div style={{ flex:1 }} />
-          {/* Always-visible Leave Room button */}
+          {/* Leave Room button — always visible for BOTH p1 and p2 */}
           <button onClick={handleLeave}
             style={{ background:'transparent', border:'2px solid var(--c2)', borderRadius:'var(--r)', padding:'6px 12px', fontSize:11, fontWeight:700, color:'var(--c2)', cursor:'pointer', WebkitTapHighlightColor:'transparent' }}>
             🚪 Leave Room
@@ -467,7 +502,7 @@ export default function MultiGameScreen() {
         </div>
       </div>
 
-      {/* ── WIN OVERLAY ───────────────────────────────────── */}
+      {/* ── WIN OVERLAY ─────────────────────────────────────────── */}
       <WinOverlay
         show={!!winData}
         isWin={winData?.won}

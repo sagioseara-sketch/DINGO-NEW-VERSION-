@@ -1,18 +1,21 @@
 // src/screens/FriendsScreen.jsx
 //
-// INVITE FLOW EXPLAINED:
-// When you click "⚔️ Challenge" on a friend:
-//   1. A random board is generated for you (you can customise it in the Room flow,
-//      but quick-challenge uses random to keep the UX frictionless).
-//   2. sendInvite() creates a real room in Firebase RTDB with you as p1,
-//      then writes an invite record at invites/{friendUid}/{inviteId}.
-//   3. Your friend's InviteBanner (mounted globally in App.jsx) fires immediately
-//      because they're already listening on invites/{theirUid}.
-//   4. Meanwhile, THIS screen starts listenRoom() on the new roomId so it knows
-//      the moment the friend accepts (p2 joins).
-//   5. When p2 joins → both navigate to /game/:roomId.
-//   6. If the friend declines or the 45s timer runs out → the invite is cleaned up,
-//      the waiting badge disappears, and you can try again.
+// CHANGES IN THIS VERSION:
+//
+// SEARCH BY PLAYER ID:
+//   The search bar now detects whether the user typed a numeric ID (8 digits,
+//   optionally prefixed with #) and calls searchUserByShortId() instead of
+//   searchUserByName(). This lets players find each other by sharing their
+//   Player ID without needing to know the exact display name.
+//
+// CHALLENGE TO MATCH:
+//   Each friend row now has a "🎮 Challenge" button. Clicking it:
+//     1. Generates a random board for the challenger (p1).
+//     2. Creates a waiting room in Firebase.
+//     3. Writes a match invite to RTDB under invites/{friendUid}/{inviteId}.
+//     4. Navigates the challenger to /game/{roomId} as p1 in 'waiting' status.
+//   The challenged friend sees the invite on the HomeScreen notification strip
+//   and can Accept or Decline from there.
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,34 +24,27 @@ import {
   sendFriendRequest, acceptRequest, declineRequest,
   removeFriend, listenPendingRequests, getFriendsList,
 } from '../firebase/friends';
-import { searchUserByName } from '../firebase/userService';
-import { showToast } from '../firebase/notifications';
-import { sendInvite, cancelInvite } from '../firebase/invites';
-import { listenRoom, cleanupRoom } from '../firebase/roomService';
+import {
+  searchUserByName, searchUserByShortId,
+} from '../firebase/userService';
+import { sendMatchInvite } from '../firebase/roomService';
 import { genRandomBoard } from '../game/aiLogic';
-import { getSFX } from '../sounds/sfxThemes';
+import { showToast } from '../firebase/notifications';
 
 export default function FriendsScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const nav = useNavigate();
-  const sfx = getSFX();
-
-  const [tab,       setTab]      = useState('friends');
-  const [friends,   setFriends]  = useState([]);
-  const [requests,  setRequests] = useState([]);
-  const [searchVal, setSearch]   = useState('');
-  const [results,   setResults]  = useState([]);
+  const [tab,       setTab]       = useState('friends');
+  const [friends,   setFriends]   = useState([]);
+  const [requests,  setRequests]  = useState([]);
+  const [searchVal, setSearch]    = useState('');
+  const [results,   setResults]   = useState([]);
   const [searching, setSearching] = useState(false);
-  const [loading,   setLoading]  = useState(true);
+  const [loading,   setLoading]   = useState(true);
+  const [challenging, setChallenging] = useState({}); // friendUid → 'pending' | 'sent'
+  const unsubRef = useRef(null);
 
-  // inviteState: maps friendUid → { status: 'sending'|'waiting'|'idle', roomId, inviteId }
-  const [inviteState, setInviteState] = useState({});
-
-  // Active room listeners — keyed by roomId so we can clean up per-invite
-  const roomUnsubRefs = useRef({});
-  const unsubRef      = useRef(null);
-
-  // ── Load friends ──────────────────────────────────────────────
+  // Load friends list
   useEffect(() => {
     if (!profile?.friends) { setLoading(false); return; }
     getFriendsList(profile.friends)
@@ -56,88 +52,26 @@ export default function FriendsScreen() {
       .catch(() => setLoading(false));
   }, [profile?.friends?.length]);
 
-  // ── Listen for incoming friend requests ───────────────────────
+  // Listen for pending friend requests
   useEffect(() => {
     if (!user) return;
     const unsub = listenPendingRequests(user.uid, reqs => setRequests(reqs));
     unsubRef.current = unsub;
-    return () => unsub?.();
+    return () => { if (unsubRef.current) unsubRef.current(); };
   }, [user?.uid]);
 
-  // Clean up any open room listeners when unmounting
-  useEffect(() => {
-    return () => {
-      Object.values(roomUnsubRefs.current).forEach(fn => fn?.());
-    };
-  }, []);
-
-  // ── Send a match challenge to a friend ────────────────────────
-  const handleChallenge = async (friend) => {
-    const st = inviteState[friend.uid];
-    // If already waiting — cancel the pending invite
-    if (st?.status === 'waiting') {
-      roomUnsubRefs.current[st.roomId]?.();
-      delete roomUnsubRefs.current[st.roomId];
-      await cancelInvite(friend.uid, st.inviteId).catch(() => {});
-      await cleanupRoom(st.roomId).catch(() => {});
-      setInviteState(prev => ({ ...prev, [friend.uid]: { status:'idle' } }));
-      return;
-    }
-
-    // Start sending
-    setInviteState(prev => ({ ...prev, [friend.uid]: { status:'sending' } }));
-    sfx.click?.();
-
-    try {
-      const myBoard  = genRandomBoard();
-      const fromData = {
-        uid:    user.uid,
-        name:   profile?.displayName || 'Player',
-        avatar: profile?.avatar || '🎯',
-        role:   'p1',
-      };
-      const { roomId, inviteId } = await sendInvite(friend.uid, fromData, myBoard);
-
-      setInviteState(prev => ({ ...prev, [friend.uid]: { status:'waiting', roomId, inviteId } }));
-      showToast('⚔️ Invite sent!', `Waiting for ${friend.displayName}…`, 'success');
-
-      // Listen for the friend joining the room (they called joinRoom on accept)
-      const roomUnsub = listenRoom(roomId, roomData => {
-        if (!roomData?.players?.p2) return; // still waiting
-        // p2 has joined — navigate to the game
-        roomUnsub();
-        delete roomUnsubRefs.current[roomId];
-        setInviteState(prev => ({ ...prev, [friend.uid]: { status:'idle' } }));
-        nav(`/game/${roomId}`, { state: { role:'p1', board: myBoard } });
-      });
-      roomUnsubRefs.current[roomId] = roomUnsub;
-
-      // Auto-cancel after 47s (slightly longer than the 45s invite window)
-      setTimeout(async () => {
-        const cur = inviteState[friend.uid]; // stale, use functional update
-        setInviteState(prev => {
-          if (prev[friend.uid]?.roomId !== roomId) return prev; // already resolved
-          roomUnsubRefs.current[roomId]?.();
-          delete roomUnsubRefs.current[roomId];
-          cleanupRoom(roomId).catch(() => {});
-          showToast('⏰ Invite expired', `${friend.displayName} didn't respond`, 'info');
-          return { ...prev, [friend.uid]: { status:'idle' } };
-        });
-      }, 47_000);
-
-    } catch (e) {
-      console.error('Challenge error:', e);
-      setInviteState(prev => ({ ...prev, [friend.uid]: { status:'idle' } }));
-      showToast('Error', 'Could not send invite. Try again.', 'error');
-    }
-  };
-
-  // ── Friend request actions ────────────────────────────────────
+  // ── Search ──────────────────────────────────────────────────────────────────
+  // Auto-detect: if the query looks like a Player ID (all digits or #digits),
+  // search by shortId. Otherwise fall back to name search.
   const doSearch = async () => {
     if (!searchVal.trim()) return;
     setSearching(true); setResults([]);
+    const clean = searchVal.trim();
+    const isIdSearch = /^#?\d{6,9}$/.test(clean);
     try {
-      const res = await searchUserByName(searchVal.trim());
+      const res = isIdSearch
+        ? await searchUserByShortId(clean)
+        : await searchUserByName(clean);
       setResults(res.filter(u => u.uid !== user.uid));
     } catch {
       showToast('Search failed', 'Try again', 'error');
@@ -145,7 +79,7 @@ export default function FriendsScreen() {
     setSearching(false);
   };
 
-  const handleSendRequest = async (toUser) => {
+  const handleSend = async (toUser) => {
     const res = await sendFriendRequest(user.uid, toUser.uid, profile?.displayName || 'Player');
     if (res.error) showToast('⚠️ ' + res.error, '', 'info');
     else showToast('✅ Request Sent!', `Sent to ${toUser.displayName}`, 'success');
@@ -157,23 +91,51 @@ export default function FriendsScreen() {
     showToast('👥 Friends!', `You and ${req.fromName} are now friends`, 'success');
   };
 
-  const handleDecline  = async (req)       => declineRequest(req.id);
-  const handleRemove   = async (friendUid) => {
+  const handleDecline = async (req) => { await declineRequest(req.id); };
+
+  const handleRemove = async (friendUid) => {
     await removeFriend(user.uid, friendUid);
     await refreshProfile(user.uid);
     setFriends(prev => prev.filter(f => f.uid !== friendUid));
   };
 
-  // ── Tab config ────────────────────────────────────────────────
+  // ── Challenge to Match ──────────────────────────────────────────────────────
+  // Creates a room, sends an RTDB invite, then navigates to the game as p1.
+  const handleChallenge = async (friend) => {
+    if (challenging[friend.uid]) return;
+    setChallenging(prev => ({ ...prev, [friend.uid]: 'pending' }));
+    try {
+      const p1Board = genRandomBoard();
+      const p1Data  = {
+        uid:    user.uid,
+        name:   profile?.displayName || 'Player',
+        avatar: profile?.avatar      || '🎯',
+      };
+      const { roomId } = await sendMatchInvite(
+        user.uid,
+        profile?.displayName || 'Player',
+        profile?.avatar      || '🎯',
+        friend.uid,
+        p1Board,
+      );
+      showToast('🎮 Challenge Sent!', `Waiting for ${friend.displayName} to accept…`, 'success');
+      // Navigate to the waiting room as p1
+      nav(`/game/${roomId}`, { state: { role: 'p1', board: p1Board } });
+    } catch (e) {
+      console.error('Challenge error:', e);
+      showToast('❌ Failed', 'Could not send challenge. Try again.', 'error');
+      setChallenging(prev => ({ ...prev, [friend.uid]: null }));
+    }
+  };
+
   const TABS = [
-    { id:'friends',  label:`Friends (${friends.length})` },
-    { id:'requests', label:`Requests${requests.length > 0 ? ` (${requests.length})` : ''}`, badge:requests.length },
-    { id:'search',   label:'🔍 Find' },
+    { id: 'friends',  label: `Friends (${friends.length})` },
+    { id: 'requests', label: `Requests${requests.length > 0 ? ` (${requests.length})` : ''}`, badge: requests.length },
+    { id: 'search',   label: '🔍 Find' },
   ];
 
   return (
-    <div className="screen" style={{ paddingBottom:80 }}>
-
+    <div className="screen" style={{ paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, width:'100%', maxWidth:440, marginBottom:14, paddingTop:8 }}>
         <button className="btn btn-ghost" style={{ padding:'6px 12px' }} onClick={() => nav('/')}>← Back</button>
@@ -183,15 +145,16 @@ export default function FriendsScreen() {
       {/* Tabs */}
       <div style={{ display:'flex', gap:6, width:'100%', maxWidth:440, marginBottom:14 }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex:1, padding:'9px 6px', border:'2px solid',
-            borderColor: tab===t.id ? 'var(--c1)' : 'var(--edge2)',
-            borderRadius:'var(--r)',
-            background:  tab===t.id ? 'rgba(0,255,204,0.1)' : 'var(--panel)',
-            color:       tab===t.id ? 'var(--c1)' : 'var(--ink2)',
-            fontSize:11, fontWeight:700, cursor:'pointer',
-            WebkitTapHighlightColor:'transparent', position:'relative',
-          }}>
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{
+              flex:1, padding:'9px 6px', border:'2px solid',
+              borderColor: tab === t.id ? 'var(--c1)' : 'var(--edge2)',
+              borderRadius:'var(--r)',
+              background: tab === t.id ? 'rgba(0,255,204,0.1)' : 'var(--panel)',
+              color: tab === t.id ? 'var(--c1)' : 'var(--ink2)',
+              fontSize:11, fontWeight:700, cursor:'pointer',
+              WebkitTapHighlightColor:'transparent', position:'relative',
+            }}>
             {t.label}
             {t.badge > 0 && tab !== t.id && (
               <span style={{ position:'absolute', top:-6, right:-4, background:'var(--c2)', color:'#fff', fontSize:10, fontWeight:700, borderRadius:'50%', width:17, height:17, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -202,7 +165,7 @@ export default function FriendsScreen() {
         ))}
       </div>
 
-      {/* ═══ FRIENDS TAB ════════════════════════════════════════ */}
+      {/* ── FRIENDS TAB ── */}
       {tab === 'friends' && (
         <div className="card" style={{ maxWidth:440 }}>
           {loading ? (
@@ -211,80 +174,41 @@ export default function FriendsScreen() {
             <div style={{ textAlign:'center', padding:32, color:'var(--ink2)' }}>
               <div style={{ fontSize:40, marginBottom:10 }}>👥</div>
               <div style={{ fontWeight:700 }}>No friends yet</div>
-              <div style={{ fontSize:13, marginTop:4 }}>Search to find and add players!</div>
+              <div style={{ fontSize:13, marginTop:4 }}>Search by name or Player ID to add players!</div>
               <button className="btn btn-primary" style={{ marginTop:14 }} onClick={() => setTab('search')}>
                 Find Players
               </button>
             </div>
-          ) : friends.map(f => {
-            const st = inviteState[f.uid];
-            const isWaiting = st?.status === 'waiting';
-            const isSending = st?.status === 'sending';
-
-            return (
-              <div key={f.uid} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', borderBottom:'1px solid var(--edge)', flexWrap:'wrap' }}>
-
-                {/* Avatar */}
-                <span style={{ fontSize:26, flexShrink:0 }}>{f.avatar || '🎯'}</span>
-
-                {/* Name + stats */}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {f.displayName}
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                    {/* Online dot */}
-                    <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background: f.isOnline ? 'var(--c1)' : 'var(--ink3)', boxShadow: f.isOnline ? '0 0 5px var(--c1)' : 'none' }} />
-                    <span style={{ fontSize:10, color:'var(--ink3)' }}>{f.isOnline ? 'Online' : 'Offline'}</span>
-                    <span style={{ fontSize:10, color:'var(--ink3)' }}>· {f.wins||0}W</span>
-                  </div>
-                  {/* Waiting badge — shown while invite is live */}
-                  {(isWaiting || isSending) && (
-                    <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:5, background:'rgba(255,204,0,0.1)', border:'1px solid rgba(255,204,0,0.35)', borderRadius:6, padding:'3px 8px', display:'inline-flex' }}>
-                      <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--c3)', animation:'blink 1s infinite' }} />
-                      <span style={{ fontSize:10, color:'var(--c3)', fontWeight:700 }}>
-                        {isSending ? 'Sending…' : 'Waiting for response…'}
-                      </span>
-                    </div>
-                  )}
+          ) : friends.map(f => (
+            <div key={f.uid} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', borderBottom:'1px solid var(--edge)' }}>
+              <span style={{ fontSize:26 }}>{f.avatar || '🎯'}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:14, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.displayName}</div>
+                <div style={{ fontSize:10, color:'var(--ink2)', marginTop:1 }}>
+                  {f.wins || 0}W · {f.losses || 0}L
+                  {f.shortId && <span style={{ marginLeft:8, color:'var(--c3)', fontFamily:"'Black Han Sans',sans-serif", letterSpacing:1 }}>#{f.shortId}</span>}
                 </div>
-
-                {/* ⚔️ Challenge button */}
-                <button
-                  onClick={() => handleChallenge(f)}
-                  disabled={isSending}
-                  title={isWaiting ? 'Cancel invite' : f.isOnline ? 'Challenge to a match' : 'Player is offline'}
-                  style={{
-                    flexShrink:0,
-                    background: isWaiting ? 'rgba(255,204,0,0.15)' : f.isOnline ? 'rgba(0,255,204,0.1)' : 'transparent',
-                    border: `2px solid ${isWaiting ? 'var(--c3)' : f.isOnline ? 'var(--c1)' : 'var(--edge2)'}`,
-                    borderRadius:8, padding:'6px 10px',
-                    fontSize:12, fontWeight:800,
-                    color: isWaiting ? 'var(--c3)' : f.isOnline ? 'var(--c1)' : 'var(--ink3)',
-                    cursor: isSending ? 'not-allowed' : 'pointer',
-                    WebkitTapHighlightColor:'transparent',
-                    opacity: isSending ? 0.5 : 1,
-                    letterSpacing:0.5,
-                  }}>
-                  {isSending ? '⏳' : isWaiting ? '✕ Cancel' : '⚔️ Challenge'}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background: f.isOnline ? 'var(--c1)' : 'var(--ink3)', boxShadow: f.isOnline ? '0 0 6px var(--c1)' : 'none' }} />
+                {/* Challenge button */}
+                <button onClick={() => handleChallenge(f)}
+                  disabled={!!challenging[f.uid]}
+                  title={`Challenge ${f.displayName} to a match`}
+                  style={{ background: challenging[f.uid] ? 'var(--panel2)' : 'var(--c4)', color:'#fff', border:'none', borderRadius:7, padding:'6px 10px', fontWeight:700, fontSize:11, cursor: challenging[f.uid] ? 'not-allowed' : 'pointer', WebkitTapHighlightColor:'transparent', opacity: challenging[f.uid] ? 0.5 : 1 }}>
+                  {challenging[f.uid] ? '⏳' : '🎮'}
                 </button>
-
-                {/* Remove button */}
-                <button onClick={() => handleRemove(f.uid)} title="Remove friend" style={{
-                  flexShrink:0, background:'none',
-                  border:'2px solid var(--edge2)', borderRadius:6,
-                  padding:'6px 8px', fontSize:11, color:'var(--ink3)',
-                  cursor:'pointer', WebkitTapHighlightColor:'transparent',
-                }}>
-                  Remove
+                <button onClick={() => handleRemove(f.uid)}
+                  style={{ background:'none', border:'2px solid var(--edge2)', borderRadius:6, padding:'4px 8px', fontSize:11, color:'var(--ink3)', cursor:'pointer' }}>
+                  ✕
                 </button>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* ═══ REQUESTS TAB ═══════════════════════════════════════ */}
+      {/* ── REQUESTS TAB ── */}
       {tab === 'requests' && (
         <div className="card" style={{ maxWidth:440 }}>
           {requests.length === 0 ? (
@@ -300,10 +224,12 @@ export default function FriendsScreen() {
                 <div style={{ fontWeight:700, fontSize:14 }}>{req.fromName || 'Unknown'}</div>
                 <div style={{ fontSize:12, color:'var(--ink2)', marginTop:2 }}>Wants to be friends</div>
               </div>
-              <button onClick={() => handleAccept(req)} style={{ background:'var(--c1)', color:'#000', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer', marginRight:4 }}>
+              <button onClick={() => handleAccept(req)}
+                style={{ background:'var(--c1)', color:'#000', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer', marginRight:4 }}>
                 ✓ Accept
               </button>
-              <button onClick={() => handleDecline(req)} style={{ background:'none', border:'2px solid var(--edge2)', borderRadius:7, padding:'8px 10px', fontSize:12, color:'var(--ink2)', cursor:'pointer' }}>
+              <button onClick={() => handleDecline(req)}
+                style={{ background:'none', border:'2px solid var(--edge2)', borderRadius:7, padding:'8px 10px', fontSize:12, color:'var(--ink2)', cursor:'pointer' }}>
                 ✕
               </button>
             </div>
@@ -311,15 +237,19 @@ export default function FriendsScreen() {
         </div>
       )}
 
-      {/* ═══ SEARCH TAB ═════════════════════════════════════════ */}
+      {/* ── SEARCH TAB ── */}
       {tab === 'search' && (
         <div style={{ width:'100%', maxWidth:440 }}>
+          {/* Hint about ID search */}
+          <div style={{ fontSize:11, color:'var(--ink3)', marginBottom:8, paddingLeft:2, lineHeight:1.6 }}>
+            Search by display name, or enter a Player ID like <span style={{ color:'var(--c3)', fontFamily:"'Black Han Sans',sans-serif" }}>#12345678</span>
+          </div>
           <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-            <input type="text" placeholder="Search by username…"
+            <input type="text" placeholder="Name or #PlayerID…"
               value={searchVal}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && doSearch()}
-              style={{ flex:1 }} enterKeyHint="search"
+              style={{ flex:1 }}
             />
             <button className="btn btn-primary" onClick={doSearch} disabled={searching} style={{ padding:'0 16px' }}>
               {searching ? '…' : '🔍'}
@@ -331,18 +261,21 @@ export default function FriendsScreen() {
               {results.map(u => (
                 <div key={u.uid} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:'1px solid var(--edge)' }}>
                   <span style={{ fontSize:26 }}>{u.avatar || '🎯'}</span>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:700, fontSize:14 }}>{u.displayName}</div>
-                    <div style={{ fontSize:11, color:'var(--ink2)' }}>{u.wins||0}W · {u.losses||0}L</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:14, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.displayName}</div>
+                    <div style={{ fontSize:11, color:'var(--ink2)' }}>
+                      {u.wins || 0}W · {u.losses || 0}L
+                      {u.shortId && <span style={{ marginLeft:8, color:'var(--c3)', fontFamily:"'Black Han Sans',sans-serif", fontSize:11, letterSpacing:1 }}>#{u.shortId}</span>}
+                    </div>
                   </div>
-                  <button onClick={() => handleSendRequest(u)} style={{ background:'var(--c4)', color:'#fff', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer' }}>
+                  <button onClick={() => handleSend(u)}
+                    style={{ background:'var(--c4)', color:'#fff', border:'none', borderRadius:7, padding:'8px 14px', fontWeight:700, fontSize:12, cursor:'pointer' }}>
                     + Add
                   </button>
                 </div>
               ))}
             </div>
           )}
-
           {searchVal && !searching && results.length === 0 && (
             <div style={{ textAlign:'center', color:'var(--ink2)', padding:24, fontSize:14 }}>
               No players found for "{searchVal}"
