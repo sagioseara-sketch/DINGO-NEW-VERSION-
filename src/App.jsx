@@ -1,20 +1,21 @@
 // src/App.jsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import ToastContainer from './components/Toast';
+import InviteBanner from './components/InviteBanner';
 import { useEffect } from 'react';
 import { listenForegroundMessages, showToast } from './firebase/notifications';
 
-import SplashScreen       from './screens/SplashScreen';
-import LoginScreen        from './screens/LoginScreen';
-import HomeScreen         from './screens/HomeScreen';
-import ProfileScreen      from './screens/ProfileScreen';
-import BotGameScreen      from './screens/BotGameScreen';
-import RoomScreen         from './screens/RoomScreen';
-import MultiGameScreen    from './screens/MultiGameScreen';
-import LeaderboardScreen  from './screens/LeaderboardScreen';
-import FriendsScreen      from './screens/FriendsScreen';
-import HistoryScreen      from './screens/HistoryScreen';
+import SplashScreen      from './screens/SplashScreen';
+import LoginScreen       from './screens/LoginScreen';
+import HomeScreen        from './screens/HomeScreen';
+import ProfileScreen     from './screens/ProfileScreen';
+import BotGameScreen     from './screens/BotGameScreen';
+import RoomScreen        from './screens/RoomScreen';
+import MultiGameScreen   from './screens/MultiGameScreen';
+import LeaderboardScreen from './screens/LeaderboardScreen';
+import FriendsScreen     from './screens/FriendsScreen';
+import HistoryScreen     from './screens/HistoryScreen';
 
 function Spinner() {
   return (
@@ -30,7 +31,6 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-// Smart root: shows splash for guests, home for logged-in users
 function RootRoute() {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
@@ -50,11 +50,15 @@ function AppInner() {
   }, []);
 
   return (
-    <BrowserRouter basename="/DINGO-NEW-VERSION-">
+    <HashRouter>
       <ToastContainer />
+      {/* InviteBanner sits outside Routes so it renders on every screen.
+          When a friend sends a challenge, the popup appears regardless of
+          which page the invited player is currently on. */}
+      <InviteBanner />
       <Routes>
-        <Route path="/"        element={<RootRoute />} />
-        <Route path="/login"   element={<LoginScreen />} />
+        <Route path="/"      element={<RootRoute />} />
+        <Route path="/login" element={<LoginScreen />} />
 
         <Route path="/profile"      element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
         <Route path="/bot"          element={<ProtectedRoute><BotGameScreen /></ProtectedRoute>} />
@@ -66,7 +70,7 @@ function AppInner() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
