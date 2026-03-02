@@ -1,36 +1,89 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      # ── Node 20 for Vite + Capacitor CLI ─────────────────────────
+      - uses: actions/setup-node@v4
         with:
-          distribution: 'temurin'
+          node-version: 20
+
+      # ── Java 17 ──────────────────────────────────────────────────
+      # Capacitor 5 / Android Gradle Plugin 8.x targets Java 17.
+      # Java 21 causes annotation-processor failures with AGP 8.x.
+      - uses: actions/setup-java@v4
+        with:
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK components
+      # ── Accept Android SDK licenses ──────────────────────────────
+      # Writing the hash files directly is the only reliable approach
+      # on GitHub-hosted runners — piping to sdkmanager requires a PTY
+      # that is not available in CI and silently fails.
+      - name: Accept Android SDK licenses
         run: |
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' \
+            > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf '\n84831b9409646a918e30573bab4c9c91346d8abd\n' \
+            > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          printf '\nd975f751698a77b662f1254ddbeed3901e976f5a\n' \
+            > "$ANDROID_HOME/licenses/intel-android-extra-license"
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      # ── Install SDK platform + build tools ───────────────────────
+      # Pre-installing prevents Gradle from downloading them mid-build,
+      # which times out on slow CI connections.
+      - name: Install Android SDK components
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # ── Install web dependencies ─────────────────────────────────
+      - name: Install npm dependencies
+        run: npm install
+
+      # ── Install Capacitor packages explicitly ────────────────────
+      # These are NOT in devDependencies because they must also be
+      # available at runtime inside the Android project. Installing
+      # them as a separate step ensures they are always present even
+      # if package.json is out of date.
+      - name: Install Capacitor packages
+        run: npm install @capacitor/core@^5.7.4 @capacitor/cli@^5.7.4 @capacitor/android@^5.7.4
+
+      # ── Vite build ───────────────────────────────────────────────
+      - name: Build web app
+        run: npm run build
+
+      # ── Add Android platform ─────────────────────────────────────
+      # "|| true" silences "already added" when the android/ folder
+      # was restored from a previous run or committed to the repo.
+      - name: Add Android platform
+        run: npx cap add android 2>/dev/null || true
+
+      # ── Sync web assets into the Android project ─────────────────
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # ── Make Gradle wrapper executable ───────────────────────────
+      # cap add android generates gradlew without the execute bit on
+      # Linux. Chmod is idempotent if it's already set.
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # ── Build the debug APK ──────────────────────────────────────
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
+
+      # ── Upload APK as downloadable artifact ─────────────────────
+      - uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: DiNGo-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
