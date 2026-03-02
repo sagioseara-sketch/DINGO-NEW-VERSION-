@@ -43,7 +43,7 @@ jobs:
       # Pre-installing prevents Gradle from downloading them mid-build,
       # which times out on slow CI connections.
       - name: Install Android SDK components
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       # ── Install web dependencies ─────────────────────────────────
       - name: Install npm dependencies
