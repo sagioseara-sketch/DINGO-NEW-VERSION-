@@ -15,6 +15,12 @@
     "queue": {
       ".read":  "auth != null",
       ".write": "auth != null"
+    },
+    "invites": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null"
+      }
     }
   }
 }
