@@ -1,94 +1,36 @@
-name: Build Android APK
+name: Build APK
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # ── Node 20 for Vite build + Capacitor CLI ──────────────────
-      - uses: actions/setup-node@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          node-version: 20
-
-      # ── Java 17 ─────────────────────────────────────────────────
-      # Capacitor 5 generates an Android project using Android Gradle
-      # Plugin 8.x, which officially targets Java 17. Java 21 can cause
-      # annotation processor failures with AGP 8.x on CI. 17 is safe.
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '17'
           distribution: 'temurin'
+          java-version: '17'
 
-      # ── Accept Android SDK licenses ──────────────────────────────
-      # Writing the license hash files directly is the most reliable
-      # approach on CI. Using "yes | sdkmanager --licenses" requires a
-      # working pseudo-terminal, which is not guaranteed on all runners
-      # and often silently fails, causing Gradle to abort with
-      # "Android SDK license not accepted".
-      - name: Accept Android SDK licenses
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
         run: |
-          mkdir -p "$ANDROID_HOME/licenses"
-          # android-sdk-license  (covers most SDK packages)
-          printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' \
-            > "$ANDROID_HOME/licenses/android-sdk-license"
-          # android-sdk-preview-license
-          printf '\n84831b9409646a918e30573bab4c9c91346d8abd\n' \
-            > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          # intel-android-extra-license  (needed on some runners)
-          printf '\nd975f751698a77b662f1254ddbeed3901e976f5a\n' \
-            > "$ANDROID_HOME/licenses/intel-android-extra-license"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # ── Install SDK platform & build tools ───────────────────────
-      # Installing these explicitly before the Gradle build prevents
-      # Gradle from downloading them mid-build (which can time out on
-      # slow CI connections and produce cryptic errors).
-      - name: Install Android SDK components
-        run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+      - name: Build APK
+        run: ./gradlew assembleDebug
 
-      # ── Install all npm dependencies ────────────────────────────
-      # Capacitor packages (core, cli, android) are pinned to 5.7.4
-      # in package.json, so a single npm install gets everything at
-      # matching versions — no separate install step needed.
-      - name: Install dependencies
-        run: npm install
-
-      # ── Build React/Vite web app ─────────────────────────────────
-      - name: Build web app
-        run: npm run build
-
-      # ── Add Android platform ─────────────────────────────────────
-      # "|| true" suppresses the "android platform already added" warning
-      # when the android/ folder was cached from a previous run.
-      # Real failures (bad config, missing deps) are caught by cap sync.
-      - name: Add Android platform
-        run: npx cap add android 2>/dev/null || true
-
-      # ── Sync web assets into Android ─────────────────────────────
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      # ── Make Gradle wrapper executable ───────────────────────────
-      # cap add android generates gradlew without the execute bit on Linux.
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      # ── Build the debug APK ──────────────────────────────────────
-      # --no-daemon: CI machines are ephemeral, daemon processes waste memory.
-      # --stacktrace: surfaces the real error if the build fails.
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
-
-      # ── Upload APK as downloadable artifact ─────────────────────
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: DiNGo-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
