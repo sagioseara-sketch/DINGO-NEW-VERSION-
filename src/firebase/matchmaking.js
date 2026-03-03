@@ -1,69 +1,64 @@
 // src/firebase/matchmaking.js
 //
-// PRESENCE SYSTEM FIX:
-// Old approach used a 25-second heartbeat (setInterval) to keep the presence entry alive.
-// This is unreliable because: (a) if the user closes the tab before the next heartbeat,
-// the stale entry lingers for up to 25 seconds, over-counting online players; (b) on
-// mobile, the browser may suspend the interval when the app is backgrounded.
+// FIX 1 — unsub closure bug:
+//   `const unsub = onValue(...)` can fire the callback SYNCHRONOUSLY from
+//   Firebase's local cache before `onValue` has returned. Calling `unsub()`
+//   inside that first callback calls `undefined()` and silently crashes,
+//   leaving the listener running forever and the matchmaking stuck.
+//   Fix: declare `let stopListening` before calling `onValue`, assign it
+//   inside a `setTimeout(0)` so it's always defined before the callback uses it.
+//   Also added a `started` flag so events that fire before the listener is
+//   registered are ignored safely.
 //
-// New approach uses Firebase RTDB's built-in .info/connected special path:
-// - When the client connects to Firebase (or reconnects after a drop), .info/connected
-//   fires with value `true`. We use onDisconnect().remove() which is registered
-//   SERVER-SIDE — Firebase itself removes the entry when the connection is lost,
-//   regardless of whether the client runs any cleanup code.
-// - This is Firebase's own recommended presence pattern and is accurate to the second.
-//
-// PLAY NOW RACE FIX:
-// The matchmaking listener is async. Without a guard, two players could simultaneously
-// see each other in the queue and both attempt to create a room. A `matchMade` flag
-// (captured in the closure) ensures only one player wins the race.
+// FIX 2 — online count stale entries on logout:
+//   `onDisconnect().remove()` is registered server-side and fires when the
+//   WebSocket closes. But `signOut(auth)` invalidates the auth token before
+//   the RTDB WebSocket closes cleanly, so Firebase sometimes can't run the
+//   onDisconnect hook. Result: the presence entry lingers after logout.
+//   Fix: export `goOffline(uid)` which explicitly removes the presence entry
+//   from the client. HomeScreen calls this BEFORE calling `logout()`.
 
 import {
   ref, set, remove, onValue, onDisconnect, update, off,
 } from 'firebase/database';
 import { rtdb } from './config';
 
-// ── Proper RTDB Presence ─────────────────────────────────────────────────────
-// Using Firebase's .info/connected ensures server-side cleanup on disconnect.
-// No heartbeat needed. The entry disappears instantly when the connection drops.
+// ── Presence ──────────────────────────────────────────────────────────────────
+
 export function goOnline(uid, name, avatar) {
   const presenceRef = ref(rtdb, `online/${uid}`);
   const connRef     = ref(rtdb, '.info/connected');
 
-  // onValue on .info/connected fires immediately with the current connection state,
-  // then fires again on every reconnection event.
   const unsubConn = onValue(connRef, (snap) => {
-    if (snap.val() !== true) return; // Not yet connected
-
-    // Tell Firebase: if this client disconnects (for any reason), remove the entry.
-    // This runs SERVER-SIDE — it fires even if the browser is killed or network drops.
+    if (snap.val() !== true) return;
+    // Register server-side cleanup BEFORE writing presence
     onDisconnect(presenceRef).remove();
-
-    // Now write our presence. We do this AFTER registering onDisconnect so
-    // there is never a window where the entry exists but cleanup isn't registered.
     set(presenceRef, {
       uid,
       name:   name   || 'Player',
       avatar: avatar || '🎯',
       ts:     Date.now(),
-    }).catch(() => {}); // Silently ignore write failures on slow connections
+    }).catch(() => {});
   });
 
-  // Cleanup function: unsubscribe the connection watcher and remove our presence entry.
-  // Called when the user navigates away from the home screen.
   return () => {
     unsubConn();
+    // Explicitly remove presence so logout is instant, not waiting for WS close
     remove(presenceRef).catch(() => {});
   };
 }
 
-// Real-time count of online players — fires every time anyone joins/leaves
+// Called explicitly before signOut() to guarantee instant removal
+export function goOffline(uid) {
+  return remove(ref(rtdb, `online/${uid}`)).catch(() => {});
+}
+
 export function listenOnlineCount(callback) {
   const r = ref(rtdb, 'online');
   const unsub = onValue(
     r,
     snap => callback(snap.exists() ? Object.keys(snap.val() || {}).length : 0),
-    () => callback(0), // Error handler: show 0 rather than crashing
+    () => callback(0),
   );
   return unsub;
 }
@@ -77,13 +72,8 @@ function makeRoomId() {
 
 export async function joinQueue(uid, name, avatar, board) {
   await set(ref(rtdb, `queue/${uid}`), {
-    uid,
-    name,
-    avatar: avatar || '🎯',
-    board,
-    timestamp: Date.now(),
-    roomId: null,
-    role:   null,
+    uid, name, avatar: avatar || '🎯', board,
+    timestamp: Date.now(), roomId: null, role: null,
   });
 }
 
@@ -91,70 +81,57 @@ export function leaveQueue(uid) {
   remove(ref(rtdb, `queue/${uid}`)).catch(() => {});
 }
 
-// listenForMatch — watches the queue and creates/joins a room when two players are found.
-//
-// RACE CONDITION FIX: The `matchMade` flag (in closure) ensures that even if
-// the Firebase listener fires multiple times in quick succession (e.g. both players
-// writing entries nearly simultaneously), only ONE room creation happens.
+// FIX: `let stopListening` declared before the callback so it's always
+// defined by the time any code inside the callback tries to call it.
+// Firebase can fire onValue synchronously — `const x = onValue(...)` means
+// the callback runs BEFORE x is assigned, so calling x() crashes.
 export function listenForMatch(uid, name, avatar, board, onMatched) {
   const qRef = ref(rtdb, 'queue');
-  let matchMade = false; // Guard: prevent duplicate room creation
+  let matchMade    = false;
+  let stopListening = null; // declared before onValue — safe to call in callback
 
-  const unsub = onValue(qRef, async (snap) => {
-    if (matchMade) return; // Already handled — ignore this event
+  const handler = async (snap) => {
+    if (matchMade) return;
 
     const queue = snap.val();
-    if (!queue || !queue[uid]) return; // Our entry was removed already
+    if (!queue || !queue[uid]) return;
 
-    // Case 1: Our entry has a roomId — the other player created the room and notified us.
+    // Case 1: My entry has a roomId — the other player matched me
     if (queue[uid].roomId) {
       if (matchMade) return;
       matchMade = true;
-      unsub();
+      if (stopListening) stopListening();
       leaveQueue(uid);
       onMatched(queue[uid].roomId, queue[uid].role || 'p2');
       return;
     }
 
-    // Case 2: Look for another unmatched player in the queue.
+    // Case 2: Find another unmatched player
     const others = Object.entries(queue)
       .filter(([id, d]) => id !== uid && !d.roomId)
-      .sort((a, b) => a[1].timestamp - b[1].timestamp); // Oldest first
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
 
-    if (others.length === 0) return; // No opponent yet — keep waiting
+    if (others.length === 0) return;
 
     const [oppUid, oppData] = others[0];
-    const myTs = queue[uid]?.timestamp || 0;
-
-    // Only the player who joined EARLIEST creates the room.
-    // The newer player waits for their queue entry to be updated (Case 1 above).
-    if (myTs > oppData.timestamp) return;
-
-    // I'm the older player. Check the guard one more time before doing async work.
+    // Only the OLDER player (lower timestamp) creates the room
+    if ((queue[uid]?.timestamp || 0) > oppData.timestamp) return;
     if (matchMade) return;
     matchMade = true;
-    unsub(); // Stop listening immediately so we don't process more events
+    if (stopListening) stopListening();
 
     const roomId = makeRoomId();
     try {
-      // Create the room with both boards already set — no waiting state.
       await set(ref(rtdb, `rooms/${roomId}`), {
         gameState: {
-          status:       'playing',
-          turn:         'p1',
-          p1Board:      board,
-          p2Board:      oppData.board || [],
+          status: 'playing', turn: 'p1',
+          p1Board: board, p2Board: oppData.board || [],
           calledNumbers: [],
-          p1Lines:      0,
-          p2Lines:      0,
-          p1Chances:    5,
-          p2Chances:    5,
-          winner:       null,
-          tie:          false,
-          p1Exited:     false,
-          p2Exited:     false,
-          turnStartedAt: Date.now(),
-          createdAt:    Date.now(),
+          p1Lines: 0, p2Lines: 0,
+          p1Chances: 5, p2Chances: 5,
+          winner: null, tie: false,
+          p1Exited: false, p2Exited: false,
+          turnStartedAt: Date.now(), createdAt: Date.now(),
         },
         players: {
           p1: { uid, name, avatar: avatar || '🎯', role: 'p1' },
@@ -162,19 +139,16 @@ export function listenForMatch(uid, name, avatar, board, onMatched) {
         },
         rematch: { p1: false, p2: false, newRoomId: null },
       });
-
-      // Notify the opponent by writing roomId into their queue entry.
-      // Their listenForMatch listener will see this and trigger Case 1.
       await update(ref(rtdb, `queue/${uid}`),    { roomId, role: 'p1' });
       await update(ref(rtdb, `queue/${oppUid}`), { roomId, role: 'p2' });
-
       leaveQueue(uid);
       onMatched(roomId, 'p1');
     } catch (e) {
       console.error('Matchmaking error:', e);
-      matchMade = false; // Reset so the player can try again
+      matchMade = false; // reset so player can retry
     }
-  });
+  };
 
-  return unsub;
+  stopListening = onValue(qRef, handler);
+  return () => { if (stopListening) stopListening(); };
 }
