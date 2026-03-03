@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>DiNGo — X-FACTOR OMNI ARENA</title>
+
+  <!-- High-Octane Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&family=Black+Han+Sans&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+  
+  <style>
+    :root {
+      --bg: #050508;
+      --panel: rgba(15, 15, 22, 0.98);
+      --glass: rgba(255, 255, 255, 0.03);
+      --accent: #00f2ff; /* Cyber Cyan */
+      --pink: #ff007a;   /* Neon Pink */
+      --gold: #ffcc00;   /* X-Factor Gold */
+      --ink: #ffffff;
+      --ink-dim: rgba(255, 255, 255, 0.5);
+      --edge: rgba(255, 255, 255, 0.08);
+      --glow: 0 0 25px rgba(0, 242, 255, 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 242, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(255, 0, 122, 0.08) 0%, transparent 40%);
+    }
+
+    /* ─── SCREEN MANAGEMENT ─── */
+    .screen { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; position: fixed; inset: 0; padding: 20px; z-index: 10; }
+    .screen.active { display: flex; }
+
+    .card {
+      background: var(--panel);
+      backdrop-filter: blur(35px);
+      border: 1px solid var(--edge);
+      border-radius: 32px;
+      width: 100%;
+      max-width: 440px;
+      padding: 30px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+      position: relative;
+      animation: cardEnter 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes cardEnter { from { transform: translateY(50px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+    /* ─── DYNAMIC BUTTONS ─── */
+    .btn {
+      border: none; border-radius: 18px; padding: 18px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1px; cursor: pointer; transition: 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 13px;
+    }
+    .btn-primary { 
+      background: linear-gradient(135deg, var(--accent), #0066ff); 
+      color: #000; border-bottom: 5px solid #0044aa;
+      box-shadow: 0 10px 30px rgba(0, 242, 255, 0.3);
+    }
+    .btn-primary:active { transform: translateY(4px); border-bottom-width: 0; margin-bottom: 5px; }
+
+    .btn-outline { background: var(--glass); border: 1px solid var(--edge); color: var(--ink); }
+    .btn-outline:hover { background: rgba(255,255,255,0.06); border-color: var(--accent); color: var(--accent); }
+
+    /* ─── ARENA GRID & HAZARDS ─── */
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 25px 0; }
+    .cell { 
+      aspect-ratio: 1; background: var(--glass); border: 1px solid var(--edge); border-radius: 14px; 
+      display: flex; align-items: center; justify-content: center; font-family: 'Black Han Sans', sans-serif; 
+      font-size: 1.3rem; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+    }
+    .cell.active { background: var(--accent); color: #000; box-shadow: var(--glow); transform: scale(1.05); }
+    
+    .cell.ice::before { content: '❄️'; position: absolute; top: 4px; right: 4px; font-size: 10px; opacity: 0.8; }
+    .cell.portal::before { content: '🌀'; position: absolute; top: 4px; right: 4px; font-size: 10px; color: var(--pink); }
+    .cell.volatile { border: 2px solid var(--pink); animation: pulseVolatile 1.2s infinite; }
+    @keyframes pulseVolatile { 50% { box-shadow: inset 0 0 15px var(--pink), 0 0 10px var(--pink); } }
+
+    /* ─── OMNI HUD ─── */
+    .hud-stat { display: flex; justify-content: space-between; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--ink-dim); }
+    .meter-rail { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin: 12px 0; overflow: hidden; border: 1px solid var(--edge); }
+    .meter-fill { height: 100%; background: var(--gold); box-shadow: 0 0 15px var(--gold); transition: width 0.4s; }
+
+    /* ─── MARKET TICKER ─── */
+    .ticker-wrap { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; padding: 10px; border-top: 1px solid var(--edge); z-index: 100; pointer-events: none; }
+    .ticker-track { display: flex; animation: scrollTicker 25s linear infinite; white-space: nowrap; }
+    @keyframes scrollTicker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+    .ticker-item { margin-right: 60px; font-family: monospace; font-size: 11px; font-weight: 800; color: var(--ink-dim); }
+    .ticker-up { color: #00ff88; } .ticker-down { color: var(--pink); }
+
+    /* ─── MODALS ─── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 25px; backdrop-filter: blur(10px); }
+    .modal-content { max-height: 85vh; overflow-y: auto; scrollbar-width: none; }
+    .info-block { margin-bottom: 20px; padding-left: 15px; border-left: 3px solid var(--accent); }
+    .info-title { font-weight: 800; color: var(--accent); font-size: 14px; margin-bottom: 6px; text-transform: uppercase; }
+    .info-text { font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+
+    /* ─── QUANT PULSE OVERLAY ─── */
+    .pulse-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+    .pulse-card { border: 2px solid var(--accent); text-align: center; max-width: 320px; }
+    #pulse-timer { height: 4px; background: var(--accent); width: 100%; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- WELCOME SCREEN -->
+  <div id="screen-splash" class="screen active">
+    <div class="card">
+      <div style="text-align: center;">
+        <h1 style="font-family:'Black Han Sans'; font-size: 5rem; margin-bottom: 0;">DiNGo</h1>
+        <p style="color: var(--accent); font-weight: 800; letter-spacing: 6px; font-size: 12px; margin-bottom: 30px;">OMNI-ARENA V2.0</p>
+        
+        <div style="background: var(--glass); border-radius: 20px; padding: 20px; border: 1px solid var(--edge); margin-bottom: 25px;">
+          <p style="font-size: 9px; color: var(--gold); letter-spacing: 2px; margin-bottom: 12px; font-weight: 800;">ARENA LEADERBOARD</p>
+          <div id="leader-list" style="text-align: left;">
+            <!-- Friends list here -->
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <button class="btn btn-primary" onclick="enterGame()">⚡ START MATCH</button>
+          <button class="btn btn-outline" onclick="switchScreen('solder')">🔧 SOLDER STATION</button>
+          <button class="btn btn-outline" onclick="toggleModal(true)">📖 HOW TO PLAY</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOLDER STATION SCREEN -->
+  <div id="screen-solder" class="screen">
+    <div class="card">
+      <h2 style="font-family:'Black Han Sans'; color: var(--accent); font-size: 2rem; margin-bottom: 10px;">SOLDER STATION</h2>
+      <p style="font-size: 10px; color: var(--ink-dim); margin-bottom: 25px;">EQUIP PCB COMPONENTS FOR PASSIVE BUFFS</p>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="btn btn-outline" style="flex-direction: column; height: 120px; border-color: var(--gold);" onclick="equip('MOSFET')">
+          <span style="font-size: 24px;">⚡</span>
+          <span style="font-size: 10px;">MOSFET OVERCLOCK</span>
+        </div>
+        <div class="btn btn-outline" style="flex-direction: column; height: 120px;" onclick="equip('RESISTOR')">
+          <span style="font-size: 24px;">Ω</span>
+          <span style="font-size: 10px;">SHIELD RESISTOR</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width: 100%; margin-top: 25px;" onclick="switchScreen('splash')">💾 SAVE & RETURN</button>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY MODAL -->
+  <div id="modal-guide" class="modal-overlay">
+    <div class="card modal-content">
+      <h2 style="font-family:'Black Han Sans'; color: var(--gold); font-size: 2rem; margin-bottom: 20px;">OMNI MANUAL</h2>
+      
+      <div class="info-block">
+        <span class="info-title">The Goal</span>
+        <p class="info-text">Complete 5 lines on the board. But unlike standard Bingo, you must manage technical hazards and math spikes.</p>
+      </div>
+
+      <div class="info-block">
+        <span class="info-title">Hazard Tiles</span>
+        <p class="info-text">
+          <b>❄️ ICE:</b> Requires 2 taps to clear.<br>
+          <b>🌀 PORTAL:</b> Clicking one portal strikes its partner elsewhere.<br>
+          <b>☢️ VOLATILE:</b> Must be cleared in 10s or it locks nearby tiles.
+        </p>
+      </div>
+
+      <div class="info-block">
+        <span class="info-title">Quant-Pulse (Exam Prep)</span>
+        <p class="info-text">A math challenge pops up randomly. Solve it in 5s to unlock <b>MEGA-CALL</b> (Strike any tile instantly).</p>
+      </div>
+
+      <div class="info-block">
+        <span class="info-title">$DNG Market</span>
+        <p class="info-text">The ticker at the bottom shows market health. High volume means harder board hazards but 3x XP rewards.</p>
+      </div>
+
+      <button class="btn btn-primary" style="width: 100%;" onclick="toggleModal(false)">I AM READY</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="screen">
+    <div class="card" id="arena-card">
+      <div class="hud-stat">
+        <span>ARENA LOAD: HIGH</span>
+        <span id="ult-label" style="color: var(--gold);">REAPER: 0%</span>
+      </div>
+      <div class="meter-rail"><div id="ult-fill" class="meter-fill" style="width: 0%"></div></div>
+
+      <div class="grid" id="main-grid"></div>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-outline" style="flex: 1; border-radius: 50px;" id="skill-shield" onclick="useSkill('shield')">🛡️</button>
+        <button class="btn btn-primary" style="flex: 2; border-radius: 50px;" id="btn-reaper" onclick="triggerReaper()" disabled>💀 REAPER</button>
+        <button class="btn btn-outline" style="flex: 1; border-radius: 50px;" id="skill-glitch" onclick="useSkill('glitch')">🌀</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUANT PULSE SCREEN -->
+  <div id="overlay-pulse" class="pulse-overlay">
+    <div id="pulse-timer"></div>
+    <div class="card pulse-card">
+      <h3 style="color: var(--accent); margin-bottom: 10px;">QUANT PULSE STRIKE</h3>
+      <p id="pulse-prompt" style="font-family:'Black Han Sans'; font-size: 1.6rem; margin: 15px 0;">15 * 12 = ?</p>
+      <input type="number" id="pulse-input" placeholder="ANS" style="background:var(--glass); border:1px solid var(--accent); color:#fff; width:100px; padding:10px; border-radius:8px; text-align:center; font-size:1.5rem;">
+      <p style="font-size: 9px; color: var(--gold); margin-top: 15px;">SOLVE FOR MEGA-CALL PRIVILEGE</p>
+    </div>
+  </div>
+
+  <!-- MARKET TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker-track">
+      <span class="ticker-item">$DNG: 1.42 <span class="ticker-up">▲ 5.2%</span></span>
+      <span class="ticker-item">PINTU_COIN: 0.82 <span class="ticker-down">▼ 1.1%</span></span>
+      <span class="ticker-item">MARKET_LOAD: OVERCLOCK ACTIVE</span>
+      <span class="ticker-item">PLAYER_Pikun: WINNING STREAK x3</span>
+      <span class="ticker-item">QUANT_VOLATILITY: EXTREME</span>
+    </div>
+  </div>
+
+<script>
+  // ─── GAME STATE ───
+  let charge = 0;
+  let isMegaCall = false;
+  const friends = [
+    { name: "Pintu", wins: 42 },
+    { name: "Kalia", wins: 28 },
+    { name: "Pikun", wins: 15 }
+  ];
+
+  // ─── INITIALIZATION ───
+  function init() {
+    const list = document.getElementById('leader-list');
+    list.innerHTML = friends.sort((a,b) => b.wins - a.wins).map((f, i) => `
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:11px; padding:8px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid var(--edge);">
+        <span>#${i+1} ${f.name}</span>
+        <span style="color:var(--gold)">${f.wins}W</span>
+      </div>
+    `).join('');
+
+    // Start random Quant Pulse every 15s
+    setInterval(() => {
+      if(document.getElementById('screen-game').classList.contains('active')) triggerPulse();
+    }, 15000);
+  }
+
+  // ─── NAVIGATION ───
+  function switchScreen(id) {
+    vibrate(40);
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+  }
+
+  function toggleModal(show) {
+    vibrate(30);
+    document.getElementById('modal-guide').style.display = show ? 'flex' : 'none';
+  }
+
+  function enterGame() {
+    switchScreen('game');
+    renderGrid();
+  }
+
+  // ─── GRID LOGIC ───
+  function renderGrid() {
+    const grid = document.getElementById('main-grid');
+    grid.innerHTML = '';
+    for(let i=1; i<=25; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const r = Math.random();
+      if(r > 0.92) cell.classList.add('ice');
+      else if(r > 0.88) cell.classList.add('portal');
+      else if(r > 0.84) cell.classList.add('volatile');
+
+      cell.innerText = i;
+      cell.onclick = () => handleCellClick(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  function handleCellClick(el) {
+    if(el.classList.contains('active')) return;
+    
+    // MEGA-CALL bypasses everything
+    if(isMegaCall) {
+      isMegaCall = false;
+      showToast("MEGA-CALL CONSUMED 🎯", 2000);
+    } else if(el.classList.contains('ice')) {
+      el.classList.remove('ice');
+      impactShake();
+      vibrate(20);
+      return;
+    }
+
+    el.classList.add('active');
+    vibrate(50);
+    impactShake();
+    updateCharge(20);
+  }
+
+  // ─── HUD & SKILLS ───
+  function updateCharge(amt) {
+    charge = Math.min(charge + amt, 100);
+    document.getElementById('ult-fill').style.width = charge + '%';
+    document.getElementById('ult-label').innerText = `REAPER: ${charge}%`;
+    if(charge >= 100) {
+      document.getElementById('btn-reaper').disabled = false;
+      document.getElementById('btn-reaper').style.boxShadow = '0 0 30px var(--gold)';
+    }
+  }
+
+  function triggerReaper() {
+    vibrate([100, 50, 100]);
+    charge = 0;
+    updateCharge(0);
+    document.getElementById('btn-reaper').disabled = true;
+    showToast("REAPER STRIKE: 3X LINE PRIORITY 💀", 4000);
+    impactShake();
+  }
+
+  function useSkill(type) {
+    vibrate(30);
+    showToast(`ACTIVATED: ${type.toUpperCase()}`, 2000);
+  }
+
+  // ─── QUANT PULSE (EXAM PREP) ENGINE ───
+  function triggerPulse() {
+    const overlay = document.getElementById('overlay-pulse');
+    const prompt = document.getElementById('pulse-prompt');
+    const input = document.getElementById('pulse-input');
+    const bar = document.getElementById('pulse-timer');
+
+    // Random Math Problem
+    const n1 = Math.floor(Math.random() * 20) + 1;
+    const n2 = Math.floor(Math.random() * 15) + 1;
+    const ans = n1 * n2;
+
+    prompt.innerText = `${n1} * ${n2} = ?`;
+    input.value = '';
+    overlay.style.display = 'flex';
+    input.focus();
+
+    let timeLeft = 100;
+    const timer = setInterval(() => {
+      timeLeft -= 2;
+      bar.style.width = timeLeft + '%';
+      if(timeLeft <= 0) {
+        clearInterval(timer);
+        overlay.style.display = 'none';
+      }
+    }, 100);
+
+    input.onkeyup = (e) => {
+      if(e.key === 'Enter') {
+        if(input.value == ans) {
+          clearInterval(timer);
+          overlay.style.display = 'none';
+          isMegaCall = true;
+          showToast("QUANT SYNC: MEGA-CALL ENABLED 🧠", 4000);
+        } else {
+          clearInterval(timer);
+          overlay.style.display = 'none';
+          showToast("CALCULATION ERROR 🧊", 2000);
+        }
+      }
+    };
+  }
+
+  // ─── UTILITIES ───
+  function vibrate(ms) { if(navigator.vibrate) navigator.vibrate(ms); }
+  function impactShake() {
+    const card = document.getElementById('arena-card');
+    card.style.animation = 'none';
+    card.offsetHeight; // trigger reflow
+    card.style.animation = 'shake 0.3s cubic-bezier(.36,.07,.19,.97) both';
+  }
+
+  function showToast(text, time) {
+    const t = document.createElement('div');
+    t.innerText = text;
+    t.style = `position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--accent); padding:10px 20px; border-radius:12px; font-weight:800; font-size:10px; color:var(--accent); z-index:9999; box-shadow:var(--glow);`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), time);
+  }
+
+  // Add shake animation to CSS
+  const style = document.createElement('style');
+  style.innerHTML = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } }`;
+  document.head.appendChild(style);
+
+  init();
+</script>
+
+</body>
+</html>
+
+  
