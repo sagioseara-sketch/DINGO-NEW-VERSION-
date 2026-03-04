@@ -1,0 +1,2874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="MathMart Arena - Competitive Math Learning Game">
+    <title>MathMart Arena</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --secondary: #ec4899;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --common: #9ca3af;
+            --uncommon: #22c55e;
+            --rare: #3b82f6;
+            --epic: #a855f7;
+            --mythic: #f59e0b;
+            --divine: #fbbf24;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.8); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            text-align: center;
+            padding: 2rem 1rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .subtitle {
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: visible;
+            z-index: 1;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+            position: relative;
+            overflow: visible;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--light);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .avatar-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .avatar-option {
+            padding: 0.75rem;
+            border-radius: 12px;
+            border: 3px solid var(--light);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 2rem;
+            background: white;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .avatar-option:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+            transform: scale(1.02);
+        }
+
+        .avatar-option.selected {
+            border-color: var(--primary);
+            border-width: 4px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4), inset 0 0 20px rgba(99, 102, 241, 0.1);
+        }
+
+        .color-selector {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .color-option {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 3px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            border-color: #d1d5db;
+        }
+
+        .color-option.selected {
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            border: 5px solid white;
+            outline: 4px solid var(--primary);
+            outline-offset: 2px;
+            z-index: 10;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .avatar-option:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .color-option:active {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            opacity: 0.95;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Dashboard */
+        .dashboard-header {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .player-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border: 3px solid white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .player-details {
+            flex: 1;
+        }
+
+        .player-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .player-level {
+            font-size: 0.9rem;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .progress-container {
+            margin-top: 1rem;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        /* Navigation */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .nav-tabs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .nav-tab {
+            padding: 1rem;
+            background: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: #6b7280;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-tab .emoji {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-tab .label {
+            font-size: 0.75rem;
+            display: block;
+        }
+
+        /* Supermarket */
+        .category-filter {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .category-btn {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 2px solid var(--light);
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .category-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .item-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .item-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .item-card.owned {
+            border: 3px solid var(--success);
+        }
+
+        .item-card.owned::before {
+            content: '✓';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--success);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .item-emoji {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-name {
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+
+        .item-rarity {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-price {
+            text-align: center;
+            font-weight: 700;
+            color: var(--warning);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-bonus {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            background: var(--light);
+            padding: 0.25rem 0.5rem;
+            border-radius: 8px;
+        }
+
+        /* Math Challenge */
+        .challenge-header {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .difficulty-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .difficulty-btn {
+            padding: 1rem;
+            border: 2px solid var(--light);
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .difficulty-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .timer-display {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 1rem 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-display.warning {
+            color: var(--danger);
+            animation: pulse 0.5s infinite;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .answer-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .answer-option {
+            padding: 1.5rem;
+            background: white;
+            border: 3px solid var(--light);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .answer-option:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .answer-option.selected {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .answer-option.correct {
+            border-color: var(--success);
+            background: var(--success);
+            color: white;
+            animation: pulse 0.5s;
+        }
+
+        .answer-option.wrong {
+            border-color: var(--danger);
+            background: var(--danger);
+            color: white;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .challenge-progress {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--light);
+            transition: all 0.3s;
+        }
+
+        .progress-dot.completed {
+            background: var(--success);
+        }
+
+        .progress-dot.active {
+            background: var(--primary);
+            transform: scale(1.3);
+        }
+
+        /* Leaderboard */
+        .leaderboard-list {
+            background: white;
+            border-radius: 20px;
+            padding: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 2px solid var(--light);
+            transition: all 0.3s;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard-rank {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin-right: 1rem;
+        }
+
+        .leaderboard-rank.top1 {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: white;
+            animation: glow 2s infinite;
+        }
+
+        .leaderboard-rank.top2 {
+            background: linear-gradient(135deg, #d1d5db, #9ca3af);
+            color: white;
+        }
+
+        .leaderboard-rank.top3 {
+            background: linear-gradient(135deg, #fb923c, #f97316);
+            color: white;
+        }
+
+        .leaderboard-rank.other {
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        .leaderboard-player {
+            flex: 1;
+        }
+
+        .leaderboard-name {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .leaderboard-stats {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .leaderboard-score {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideInRight 0.3s;
+            min-width: 250px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 2rem;
+            }
+
+            .items-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 1rem; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Welcome Screen -->
+    <div class="screen active" id="welcomeScreen">
+        <div class="container">
+            <div class="welcome-screen">
+                <div class="logo">🏪 MathMart Arena</div>
+                <div class="subtitle">Compete. Learn. Dominate.</div>
+                
+                <div class="card">
+                    <div id="connectionStatus" style="background: #f3f4f6; padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-size: 0.85rem; color: #6b7280;">
+                        <span id="statusIcon">🔄</span> <span id="statusText">Checking connection...</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Your Name</label>
+                        <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Choose Avatar</label>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem;">
+                            <span id="avatarStatus">✓ Selected: 🧑</span>
+                        </div>
+                        <div class="avatar-selector" id="avatarSelector">
+                            <div class="avatar-option" data-avatar="🧑">🧑</div>
+                            <div class="avatar-option" data-avatar="👩">👩</div>
+                            <div class="avatar-option" data-avatar="🧔">🧔</div>
+                            <div class="avatar-option" data-avatar="👨">👨</div>
+                            <div class="avatar-option" data-avatar="🦸">🦸</div>
+                            <div class="avatar-option" data-avatar="🧙">🧙</div>
+                            <div class="avatar-option" data-avatar="🥷">🥷</div>
+                            <div class="avatar-option" data-avatar="👽">👽</div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Theme Color</label>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem;">
+                            <span id="colorStatus">✓ Selected: <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #6366f1; vertical-align: middle;"></span> Blue</span>
+                        </div>
+                        <div class="color-selector" id="colorSelector">
+                            <div class="color-option" data-color="#6366f1" style="background: #6366f1;"></div>
+                            <div class="color-option" data-color="#ec4899" style="background: #ec4899;"></div>
+                            <div class="color-option" data-color="#10b981" style="background: #10b981;"></div>
+                            <div class="color-option" data-color="#f59e0b" style="background: #f59e0b;"></div>
+                            <div class="color-option" data-color="#8b5cf6" style="background: #8b5cf6;"></div>
+                            <div class="color-option" data-color="#06b6d4" style="background: #06b6d4;"></div>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, #f3f4f6, #e5e7eb); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
+                        <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.5rem; font-weight: 600;">Your Character Preview</div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                            <div id="previewAvatar" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">🧑</div>
+                            <div style="text-align: left;">
+                                <div style="font-size: 0.75rem; color: #9ca3af;">Character</div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: #1f2937;" id="previewName">Player</div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.75rem;">
+                            <div style="background: white; padding: 0.5rem; border-radius: 8px;">
+                                <div style="color: #9ca3af; margin-bottom: 0.25rem;">Avatar</div>
+                                <div style="font-size: 1.25rem;" id="debugAvatar">🧑</div>
+                            </div>
+                            <div style="background: white; padding: 0.5rem; border-radius: 8px;">
+                                <div style="color: #9ca3af; margin-bottom: 0.25rem;">Color</div>
+                                <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto; border: 2px solid #e5e7eb;" id="debugColor"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="createProfile()" style="width: 100%;">
+                        🚀 Start Playing
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div class="screen" id="dashboardScreen">
+        <div class="container">
+            <div class="dashboard-header">
+                <div class="player-info">
+                    <div class="player-avatar" id="dashAvatar">🧑</div>
+                    <div class="player-details">
+                        <div class="player-name" id="dashName">Player</div>
+                        <div class="player-level" id="dashLevel">Level 1</div>
+                    </div>
+                    <button onclick="showLogoutConfirm()" style="margin-left: auto; padding: 0.5rem 1rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: all 0.3s;">
+                        🚪 Logout
+                    </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="dashCoins">100</div>
+                        <div class="stat-label">💰 Coins</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="dashXP">0</div>
+                        <div class="stat-label">⭐ XP</div>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Level Progress</span>
+                        <span id="xpProgress">0 / 100</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="xpBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showTab('challenge')">
+                    <span class="emoji">🧮</span>
+                    <span class="label">Challenge</span>
+                </button>
+                <button class="nav-tab" onclick="showTab('shop')">
+                    <span class="emoji">🏪</span>
+                    <span class="label">Shop</span>
+                </button>
+                <button class="nav-tab" onclick="showTab('inventory')">
+                    <span class="emoji">🎒</span>
+                    <span class="label">Items</span>
+                </button>
+                <button class="nav-tab" onclick="showTab('leaderboard')">
+                    <span class="emoji">🏆</span>
+                    <span class="label">Ranks</span>
+                </button>
+            </div>
+
+            <!-- Challenge Tab -->
+            <div class="tab-content active" id="challengeTab">
+                <div class="challenge-header">
+                    <h3 style="margin-bottom: 1rem; color: var(--dark);">Select Difficulty</h3>
+                    <div class="difficulty-selector">
+                        <button class="difficulty-btn" onclick="selectDifficulty('basic')">
+                            <div>⚡ Basic</div>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">4 min • 50 XP</div>
+                        </button>
+                        <button class="difficulty-btn" onclick="selectDifficulty('moderate')">
+                            <div>🔥 Moderate</div>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">8 min • 100 XP</div>
+                        </button>
+                        <button class="difficulty-btn" onclick="selectDifficulty('advanced')">
+                            <div>💎 Advanced</div>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">16 min • 200 XP</div>
+                        </button>
+                    </div>
+                    <div style="text-align: center; margin-top: 1rem; color: #6b7280;">
+                        <div>Questions Today: <strong id="questionsToday">0</strong> / 50</div>
+                    </div>
+                </div>
+
+                <div id="challengeContent" class="hidden">
+                    <div class="timer-display" id="timerDisplay">0:00</div>
+                    
+                    <div class="challenge-progress" id="challengeProgress"></div>
+
+                    <div class="question-card">
+                        <div class="question-text" id="questionText">Loading...</div>
+                        <div class="answer-options" id="answerOptions">
+                            <button class="answer-option" onclick="selectAnswer(0)">Option A</button>
+                            <button class="answer-option" onclick="selectAnswer(1)">Option B</button>
+                            <button class="answer-option" onclick="selectAnswer(2)">Option C</button>
+                            <button class="answer-option" onclick="selectAnswer(3)">Option D</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success" onclick="submitAnswer()" style="width: 100%; margin-bottom: 0.5rem;">
+                        ✓ Submit Answer
+                    </button>
+                    <button class="btn btn-danger" onclick="endChallenge()" style="width: 100%;">
+                        ✗ End Challenge
+                    </button>
+                </div>
+            </div>
+
+            <!-- Shop Tab -->
+            <div class="tab-content" id="shopTab">
+                <div class="category-filter" id="categoryFilter"></div>
+                <div class="items-grid" id="shopItems"></div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div class="tab-content" id="inventoryTab">
+                <div class="items-grid" id="inventoryItems"></div>
+            </div>
+
+            <!-- Leaderboard Tab -->
+            <div class="tab-content" id="leaderboardTab">
+                <div class="leaderboard-list" id="leaderboardList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Modal -->
+    <div class="modal" id="itemModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalItemName"></div>
+            <div class="modal-body">
+                <div style="text-align: center; font-size: 4rem; margin-bottom: 1rem;" id="modalItemEmoji"></div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Rarity:</div>
+                    <div id="modalItemRarity"></div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Price:</div>
+                    <div id="modalItemPrice"></div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Bonus:</div>
+                    <div id="modalItemBonus"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()" style="background: var(--light); color: var(--dark);">Close</button>
+                <button class="btn btn-primary" id="buyButton" onclick="buyItem()">Buy Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div class="modal" id="logoutModal">
+        <div class="modal-content">
+            <div style="text-align: center; font-size: 3rem; margin-bottom: 1rem;">🚪</div>
+            <div class="modal-header" style="text-align: center;">Logout Confirmation</div>
+            <div class="modal-body">
+                <p style="text-align: center; color: #6b7280; margin-bottom: 1.5rem;">
+                    Are you sure you want to logout?
+                </p>
+                <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border-left: 4px solid #f59e0b;">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 0.5rem;">⚠️ Important:</div>
+                    <div style="color: #78350f; font-size: 0.9rem;">
+                        Your progress is saved in the cloud. You can login again anytime using the same profile.
+                    </div>
+                </div>
+                <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; font-size: 0.9rem; color: #6b7280;">
+                    <div style="margin-bottom: 0.5rem;">✓ All your XP, coins, and items are saved</div>
+                    <div style="margin-bottom: 0.5rem;">✓ You can create a new profile</div>
+                    <div>✓ Or login to an existing one later</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeLogoutModal()" style="background: var(--light); color: var(--dark);">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmLogout()">Yes, Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Wait for Firebase to load
+        let db = null;
+        let firebaseInitialized = false;
+
+        // Initialize Firebase when scripts are loaded
+        function initializeFirebase() {
+            try {
+                // Firebase Configuration
+                const firebaseConfig = {
+                    apiKey: "AIzaSyAbAb2YcqvSaahSV_UITjQtk8UArYSaDdY",
+                    authDomain: "dingo-new-version.firebaseapp.com",
+                    databaseURL: "https://dingo-new-version-default-rtdb.firebaseio.com",
+                    projectId: "dingo-new-version",
+                    storageBucket: "dingo-new-version.firebasestorage.app",
+                    messagingSenderId: "245470329002",
+                    appId: "1:245470329002:web:f0fae2a906e773629578d3"
+                };
+
+                // Check if Firebase is available
+                if (typeof firebase === 'undefined') {
+                    console.error('❌ Firebase SDK not loaded');
+                    updateConnectionStatus(false, 'Offline Mode - Check internet connection');
+                    return false;
+                }
+
+                // Initialize Firebase
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    console.log('✅ Firebase initialized');
+                } else {
+                    console.log('✅ Firebase already initialized');
+                }
+
+                db = firebase.firestore();
+                firebaseInitialized = true;
+                console.log('✅ Firestore connected');
+                updateConnectionStatus(true, 'Connected to cloud database');
+                return true;
+            } catch (error) {
+                console.error('❌ Firebase initialization error:', error);
+                updateConnectionStatus(false, 'Connection failed - ' + error.message);
+                return false;
+            }
+        }
+
+        function updateConnectionStatus(connected, message) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusText = document.getElementById('statusText');
+            
+            if (!statusDiv || !statusIcon || !statusText) return;
+            
+            if (connected) {
+                statusDiv.style.background = 'linear-gradient(135deg, #d1fae5, #a7f3d0)';
+                statusDiv.style.color = '#065f46';
+                statusIcon.textContent = '✓';
+                statusText.textContent = message || 'Connected';
+            } else {
+                statusDiv.style.background = 'linear-gradient(135deg, #fed7aa, #fdba74)';
+                statusDiv.style.color = '#92400e';
+                statusIcon.textContent = '⚠️';
+                statusText.textContent = message || 'Offline Mode';
+            }
+        }
+
+        // Game State
+        let currentPlayer = null;
+        let allItems = [];
+        let currentChallenge = null;
+        let challengeTimer = null;
+        let currentQuestion = 0;
+        let correctAnswers = 0;
+        let selectedItem = null;
+        let selectedDifficulty = null;
+        let selectedAnswerIndex = null;
+
+        // Items Database (50 items across 6 rarity tiers)
+        const ITEMS = [
+            // Common (15 items)
+            { id: 1, name: 'Pencil', emoji: '✏️', rarity: 'common', price: 50, bonus: { type: 'xp', value: 2 } },
+            { id: 2, name: 'Eraser', emoji: '🗑️', rarity: 'common', price: 50, bonus: { type: 'coin', value: 2 } },
+            { id: 3, name: 'Notebook', emoji: '📓', rarity: 'common', price: 75, bonus: { type: 'xp', value: 3 } },
+            { id: 4, name: 'Ruler', emoji: '📏', rarity: 'common', price: 60, bonus: { type: 'penalty', value: 2 } },
+            { id: 5, name: 'Scissors', emoji: '✂️', rarity: 'common', price: 70, bonus: { type: 'coin', value: 3 } },
+            { id: 6, name: 'Stapler', emoji: '📎', rarity: 'common', price: 80, bonus: { type: 'xp', value: 3 } },
+            { id: 7, name: 'Tape', emoji: '🎀', rarity: 'common', price: 55, bonus: { type: 'coin', value: 2 } },
+            { id: 8, name: 'Glue', emoji: '🧴', rarity: 'common', price: 65, bonus: { type: 'penalty', value: 2 } },
+            { id: 9, name: 'Marker', emoji: '🖊️', rarity: 'common', price: 70, bonus: { type: 'xp', value: 3 } },
+            { id: 10, name: 'Crayon', emoji: '🖍️', rarity: 'common', price: 50, bonus: { type: 'coin', value: 2 } },
+            { id: 11, name: 'Folder', emoji: '📁', rarity: 'common', price: 60, bonus: { type: 'xp', value: 2 } },
+            { id: 12, name: 'Clips', emoji: '📌', rarity: 'common', price: 55, bonus: { type: 'penalty', value: 1 } },
+            { id: 13, name: 'Pen', emoji: '🖋️', rarity: 'common', price: 65, bonus: { type: 'coin', value: 3 } },
+            { id: 14, name: 'Highlighter', emoji: '🔦', rarity: 'common', price: 70, bonus: { type: 'xp', value: 3 } },
+            { id: 15, name: 'Paper', emoji: '📄', rarity: 'common', price: 45, bonus: { type: 'coin', value: 2 } },
+
+            // Uncommon (12 items)
+            { id: 16, name: 'Calculator', emoji: '🔢', rarity: 'uncommon', price: 150, bonus: { type: 'xp', value: 5 } },
+            { id: 17, name: 'Compass', emoji: '🧭', rarity: 'uncommon', price: 140, bonus: { type: 'coin', value: 5 } },
+            { id: 18, name: 'Protractor', emoji: '📐', rarity: 'uncommon', price: 130, bonus: { type: 'penalty', value: 5 } },
+            { id: 19, name: 'Backpack', emoji: '🎒', rarity: 'uncommon', price: 160, bonus: { type: 'xp', value: 6 } },
+            { id: 20, name: 'Globe', emoji: '🌍', rarity: 'uncommon', price: 155, bonus: { type: 'coin', value: 6 } },
+            { id: 21, name: 'Microscope', emoji: '🔬', rarity: 'uncommon', price: 170, bonus: { type: 'xp', value: 7 } },
+            { id: 22, name: 'Books', emoji: '📚', rarity: 'uncommon', price: 145, bonus: { type: 'penalty', value: 5 } },
+            { id: 23, name: 'Laptop', emoji: '💻', rarity: 'uncommon', price: 180, bonus: { type: 'coin', value: 7 } },
+            { id: 24, name: 'Tablet', emoji: '📱', rarity: 'uncommon', price: 165, bonus: { type: 'xp', value: 6 } },
+            { id: 25, name: 'Headphones', emoji: '🎧', rarity: 'uncommon', price: 150, bonus: { type: 'coin', value: 5 } },
+            { id: 26, name: 'Clock', emoji: '⏰', rarity: 'uncommon', price: 140, bonus: { type: 'timer', value: 5 } },
+            { id: 27, name: 'Calendar', emoji: '📅', rarity: 'uncommon', price: 135, bonus: { type: 'xp', value: 5 } },
+
+            // Rare (10 items)
+            { id: 28, name: 'Smart Watch', emoji: '⌚', rarity: 'rare', price: 300, bonus: { type: 'timer', value: 10 } },
+            { id: 29, name: 'Trophy', emoji: '🏆', rarity: 'rare', price: 320, bonus: { type: 'xp', value: 10 } },
+            { id: 30, name: 'Medal', emoji: '🥇', rarity: 'rare', price: 310, bonus: { type: 'coin', value: 10 } },
+            { id: 31, name: 'Gem', emoji: '💎', rarity: 'rare', price: 350, bonus: { type: 'all', value: 8 } },
+            { id: 32, name: 'Star', emoji: '⭐', rarity: 'rare', price: 330, bonus: { type: 'xp', value: 12 } },
+            { id: 33, name: 'Shield', emoji: '🛡️', rarity: 'rare', price: 340, bonus: { type: 'penalty', value: 10 } },
+            { id: 34, name: 'Magic Wand', emoji: '🪄', rarity: 'rare', price: 360, bonus: { type: 'all', value: 9 } },
+            { id: 35, name: 'Crystal Ball', emoji: '🔮', rarity: 'rare', price: 345, bonus: { type: 'coin', value: 12 } },
+            { id: 36, name: 'Ring', emoji: '💍', rarity: 'rare', price: 325, bonus: { type: 'xp', value: 11 } },
+            { id: 37, name: 'Key', emoji: '🔑', rarity: 'rare', price: 315, bonus: { type: 'timer', value: 12 } },
+
+            // Epic (7 items)
+            { id: 38, name: 'Golden Basket', emoji: '🧺', rarity: 'epic', price: 600, bonus: { type: 'xp', value: 15 } },
+            { id: 39, name: 'Crown', emoji: '👑', rarity: 'epic', price: 650, bonus: { type: 'all', value: 12 } },
+            { id: 40, name: 'Rocket', emoji: '🚀', rarity: 'epic', price: 620, bonus: { type: 'coin', value: 18 } },
+            { id: 41, name: 'Lightning', emoji: '⚡', rarity: 'epic', price: 640, bonus: { type: 'timer', value: 20 } },
+            { id: 42, name: 'Fire', emoji: '🔥', rarity: 'epic', price: 630, bonus: { type: 'xp', value: 17 } },
+            { id: 43, name: 'Rainbow', emoji: '🌈', rarity: 'epic', price: 660, bonus: { type: 'all', value: 13 } },
+            { id: 44, name: 'Dragon', emoji: '🐉', rarity: 'epic', price: 680, bonus: { type: 'penalty', value: 15 } },
+
+            // Mythic (4 items)
+            { id: 45, name: 'Phoenix', emoji: '🦅', rarity: 'mythic', price: 1200, bonus: { type: 'all', value: 18 } },
+            { id: 46, name: 'Unicorn', emoji: '🦄', rarity: 'mythic', price: 1250, bonus: { type: 'xp', value: 25 } },
+            { id: 47, name: 'Wizard Hat', emoji: '🎩', rarity: 'mythic', price: 1300, bonus: { type: 'coin', value: 25 } },
+            { id: 48, name: 'Magic Book', emoji: '📖', rarity: 'mythic', price: 1280, bonus: { type: 'all', value: 20 } },
+
+            // Divine (2 items)
+            { id: 49, name: 'Divine Crown', emoji: '👸', rarity: 'divine', price: 2500, bonus: { type: 'all', value: 30 } },
+            { id: 50, name: 'Infinity Stone', emoji: '♾️', rarity: 'divine', price: 3000, bonus: { type: 'all', value: 35 } }
+        ];
+
+        allItems = ITEMS;
+
+        // Difficulty Settings
+        const DIFFICULTY = {
+            basic: { time: 240, xpReward: 50, coinReward: 30, xpPenalty: 5 },        // 4 minutes
+            moderate: { time: 480, xpReward: 100, coinReward: 60, xpPenalty: 10 },  // 8 minutes
+            advanced: { time: 960, xpReward: 200, coinReward: 120, xpPenalty: 20 }  // 16 minutes
+        };
+
+        // Math Question Generator
+        class MathGenerator {
+            static generateQuestion(type, difficulty) {
+                switch(type) {
+                    case 'simplification':
+                        return this.generateSimplification(difficulty);
+                    case 'percentage':
+                        return this.generatePercentage(difficulty);
+                    case 'ratio':
+                        return this.generateRatio(difficulty);
+                    case 'average':
+                        return this.generateAverage(difficulty);
+                    case 'profit_loss':
+                        return this.generateProfitLoss(difficulty);
+                    case 'simple_interest':
+                        return this.generateSimpleInterest(difficulty);
+                    case 'time_work':
+                        return this.generateTimeWork(difficulty);
+                    case 'speed_distance':
+                        return this.generateSpeedDistance(difficulty);
+                    case 'age_problem':
+                        return this.generateAgeProblem(difficulty);
+                    default:
+                        return this.generateSimplification(difficulty);
+                }
+            }
+
+            static generateOptions(correctAnswer) {
+                const options = [correctAnswer];
+                
+                // Generate 3 wrong answers based on correct answer
+                const variation1 = Math.max(1, Math.round(correctAnswer * 0.85));
+                const variation2 = Math.round(correctAnswer * 1.15);
+                const variation3 = Math.max(1, Math.round(correctAnswer - this.random(10, 30)));
+                
+                // Add wrong answers, ensuring they're different from correct and positive
+                [variation1, variation2, variation3].forEach(wrong => {
+                    if (wrong !== correctAnswer && wrong > 0 && !options.includes(wrong)) {
+                        options.push(wrong);
+                    }
+                });
+                
+                // Fill remaining slots if needed
+                let attempts = 0;
+                while (options.length < 4 && attempts < 20) {
+                    const randomWrong = Math.max(1, Math.round(correctAnswer + this.random(-30, 30)));
+                    if (randomWrong !== correctAnswer && !options.includes(randomWrong)) {
+                        options.push(randomWrong);
+                    }
+                    attempts++;
+                }
+                
+                // If still not enough options, add calculated variations
+                if (options.length < 4) {
+                    const extra1 = Math.round(correctAnswer * 1.25);
+                    const extra2 = Math.round(correctAnswer * 0.75);
+                    [extra1, extra2].forEach(wrong => {
+                        if (options.length < 4 && wrong !== correctAnswer && wrong > 0 && !options.includes(wrong)) {
+                            options.push(wrong);
+                        }
+                    });
+                }
+                
+                // Shuffle options
+                return this.shuffle(options.slice(0, 4));
+            }
+
+            static shuffle(array) {
+                const shuffled = [...array];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                return shuffled;
+            }
+
+            static generateProfitLoss(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const costPrice = this.random(100, 500);
+                    const sellingPrice = this.random(costPrice + 20, costPrice + 150);
+                    const profit = sellingPrice - costPrice;
+                    question = `If cost price is $${costPrice} and selling price is $${sellingPrice}, what is the profit?`;
+                    answer = profit;
+                } else if (level === 2) {
+                    const costPrice = this.random(200, 800);
+                    const profitPercent = this.random(10, 40);
+                    const profit = Math.round((costPrice * profitPercent) / 100);
+                    const sellingPrice = costPrice + profit;
+                    question = `An item costs $${costPrice}. If sold at ${profitPercent}% profit, what is the selling price?`;
+                    answer = sellingPrice;
+                } else {
+                    const sellingPrice = this.random(500, 1500);
+                    const lossPercent = this.random(10, 25);
+                    const costPrice = Math.round((sellingPrice * 100) / (100 - lossPercent));
+                    question = `An item sold for $${sellingPrice} at ${lossPercent}% loss. What was the cost price?`;
+                    answer = costPrice;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'profit_loss' };
+            }
+
+            static generateSimpleInterest(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const principal = this.random(1000, 5000);
+                    const rate = this.random(5, 15);
+                    const time = this.random(2, 5);
+                    const interest = Math.round((principal * rate * time) / 100);
+                    question = `What is the simple interest on $${principal} at ${rate}% per year for ${time} years?`;
+                    answer = interest;
+                } else if (level === 2) {
+                    const principal = this.random(2000, 8000);
+                    const rate = this.random(8, 12);
+                    const time = this.random(3, 6);
+                    const interest = Math.round((principal * rate * time) / 100);
+                    const amount = principal + interest;
+                    question = `Principal: $${principal}, Rate: ${rate}% p.a., Time: ${time} years. Find total amount.`;
+                    answer = amount;
+                } else {
+                    const amount = this.random(8000, 15000);
+                    const rate = this.random(10, 15);
+                    const time = this.random(4, 8);
+                    const principal = Math.round((amount * 100) / (100 + (rate * time)));
+                    question = `If $${amount} is the total amount after ${time} years at ${rate}% simple interest, find the principal.`;
+                    answer = principal;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'simple_interest' };
+            }
+
+            static generateTimeWork(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const days = this.random(10, 30);
+                    const workers = this.random(2, 8);
+                    question = `${workers} workers can complete a job in ${days} days. How many days will 1 worker take?`;
+                    answer = days * workers;
+                } else if (level === 2) {
+                    const daysA = this.random(12, 24);
+                    const daysB = this.random(15, 30);
+                    const combined = Math.round((daysA * daysB) / (daysA + daysB));
+                    question = `A can complete work in ${daysA} days, B in ${daysB} days. Working together, how many days?`;
+                    answer = combined;
+                } else {
+                    const totalDays = this.random(20, 40);
+                    const workedDays = this.random(5, 15);
+                    const workersInitial = this.random(3, 6);
+                    const workersAdditional = this.random(2, 5);
+                    const remainingWork = (totalDays - workedDays) / totalDays;
+                    const remainingDays = Math.round((remainingWork * totalDays * workersInitial) / (workersInitial + workersAdditional));
+                    question = `${workersInitial} workers worked ${workedDays} of ${totalDays} days needed. ${workersAdditional} more join. Days to finish?`;
+                    answer = remainingDays;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'time_work' };
+            }
+
+            static generateSpeedDistance(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const speed = this.random(40, 80);
+                    const time = this.random(2, 6);
+                    const distance = speed * time;
+                    question = `A car travels at ${speed} km/h for ${time} hours. What distance is covered?`;
+                    answer = distance;
+                } else if (level === 2) {
+                    const distance = this.random(200, 500);
+                    const time = this.random(4, 8);
+                    const speed = Math.round(distance / time);
+                    question = `A train covers ${distance} km in ${time} hours. What is its average speed in km/h?`;
+                    answer = speed;
+                } else {
+                    const speedA = this.random(50, 70);
+                    const speedB = this.random(40, 60);
+                    const distance = this.random(100, 300);
+                    const time = Math.round(distance / (speedA + speedB));
+                    question = `Two cars start from opposite ends of ${distance} km road at ${speedA} km/h and ${speedB} km/h. When do they meet? (hours)`;
+                    answer = time;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'speed_distance' };
+            }
+
+            static generateAgeProblem(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const currentAge = this.random(20, 50);
+                    const yearsAgo = this.random(5, 15);
+                    const ageInPast = currentAge - yearsAgo;
+                    question = `John is ${currentAge} years old now. How old was he ${yearsAgo} years ago?`;
+                    answer = ageInPast;
+                } else if (level === 2) {
+                    const fatherAge = this.random(35, 55);
+                    const sonAge = this.random(10, 20);
+                    const yearsLater = this.random(5, 15);
+                    const sumLater = (fatherAge + yearsLater) + (sonAge + yearsLater);
+                    question = `Father is ${fatherAge} and son is ${sonAge}. What will be their total age after ${yearsLater} years?`;
+                    answer = sumLater;
+                } else {
+                    const ratio1 = this.random(3, 6);
+                    const ratio2 = this.random(1, 3);
+                    const totalAge = this.random(40, 80);
+                    const age1 = Math.round((ratio1 / (ratio1 + ratio2)) * totalAge);
+                    question = `Two persons' ages are in ratio ${ratio1}:${ratio2}. Their total age is ${totalAge}. Find age of elder.`;
+                    answer = age1;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'age_problem' };
+            }
+
+            static generateSimplification(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const a = this.random(5, 20);
+                    const b = this.random(2, 10);
+                    const c = this.random(2, 5);
+                    question = `Simplify: ${a} + ${b} × ${c}`;
+                    answer = a + (b * c);
+                } else if (level === 2) {
+                    const a = this.random(10, 50);
+                    const b = this.random(5, 20);
+                    const c = this.random(2, 10);
+                    const d = this.random(2, 5);
+                    question = `Simplify: ${a} - ${b} + ${c} × ${d}`;
+                    answer = a - b + (c * d);
+                } else {
+                    const a = this.random(20, 100);
+                    const b = this.random(10, 30);
+                    const c = this.random(5, 15);
+                    const d = this.random(2, 8);
+                    const e = this.random(2, 5);
+                    question = `Simplify: (${a} + ${b}) ÷ ${e} - ${c} × ${d}`;
+                    answer = Math.round((a + b) / e - (c * d));
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'simplification' };
+            }
+
+            static generatePercentage(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const percent = this.random(10, 50);
+                    const number = this.random(20, 100);
+                    question = `What is ${percent}% of ${number}?`;
+                    answer = Math.round((percent / 100) * number);
+                } else if (level === 2) {
+                    const part = this.random(10, 50);
+                    const whole = this.random(60, 200);
+                    question = `${part} is what percentage of ${whole}? (Round to nearest whole number)`;
+                    answer = Math.round((part / whole) * 100);
+                } else {
+                    const original = this.random(100, 500);
+                    const percent = this.random(10, 40);
+                    question = `A price of $${original} is increased by ${percent}%. What is the new price?`;
+                    answer = Math.round(original + (original * percent / 100));
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'percentage' };
+            }
+
+            static generateRatio(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const a = this.random(2, 8);
+                    const b = this.random(2, 8);
+                    const multiplier = this.random(3, 10);
+                    question = `If the ratio is ${a}:${b}, what is the first number when the second is ${b * multiplier}?`;
+                    answer = a * multiplier;
+                } else if (level === 2) {
+                    const a = this.random(3, 12);
+                    const b = this.random(3, 12);
+                    const total = this.random(50, 150);
+                    question = `Two numbers are in ratio ${a}:${b}. If their sum is ${total}, what is the smaller number?`;
+                    const smaller = Math.min(a, b);
+                    answer = Math.round((smaller / (a + b)) * total);
+                } else {
+                    const a = this.random(5, 15);
+                    const b = this.random(5, 15);
+                    const c = this.random(5, 15);
+                    const total = this.random(100, 300);
+                    question = `Three numbers are in ratio ${a}:${b}:${c}. If their sum is ${total}, what is the middle number?`;
+                    const sorted = [a, b, c].sort((x, y) => x - y);
+                    answer = Math.round((sorted[1] / (a + b + c)) * total);
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'ratio' };
+            }
+
+            static generateAverage(difficulty) {
+                let question, answer;
+                const level = difficulty === 'basic' ? 1 : difficulty === 'moderate' ? 2 : 3;
+                
+                if (level === 1) {
+                    const numbers = Array.from({length: 4}, () => this.random(10, 50));
+                    question = `Find the average of: ${numbers.join(', ')}`;
+                    answer = Math.round(numbers.reduce((a, b) => a + b, 0) / numbers.length);
+                } else if (level === 2) {
+                    const avg = this.random(30, 80);
+                    const count = this.random(4, 6);
+                    const known = Array.from({length: count - 1}, () => this.random(20, 100));
+                    const sum = avg * count;
+                    const knownSum = known.reduce((a, b) => a + b, 0);
+                    answer = sum - knownSum;
+                    question = `The average of ${count} numbers is ${avg}. If ${count - 1} of them are ${known.join(', ')}, what is the remaining number?`;
+                } else {
+                    const numbers = Array.from({length: 6}, () => this.random(20, 100));
+                    const sum = numbers.reduce((a, b) => a + b, 0);
+                    const avg = Math.round(sum / numbers.length);
+                    const newAvg = this.random(avg - 10, avg + 10);
+                    const newSum = newAvg * (numbers.length + 1);
+                    answer = newSum - sum;
+                    question = `The average of 6 numbers (${numbers.slice(0, 3).join(', ')}...) is ${avg}. What number should be added to make the average ${newAvg}?`;
+                }
+                
+                const options = this.generateOptions(answer);
+                return { question, answer, options, type: 'average' };
+            }
+
+            static random(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+        }
+
+        // UI Functions
+        function showLoading(show = true) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✗',
+                warning: '⚠'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type]}</div>
+                <div class="toast-message">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showTab(tabName) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            
+            // Hide ALL tab content
+            document.querySelectorAll('.tab-content').forEach(t => {
+                t.classList.remove('active');
+                t.style.display = 'none';
+            });
+            
+            // Add active class to clicked tab
+            const clickedTab = Array.from(document.querySelectorAll('.nav-tab')).find(tab => {
+                const emoji = tab.querySelector('.emoji')?.textContent;
+                return (tabName === 'challenge' && emoji === '🧮') ||
+                       (tabName === 'shop' && emoji === '🏪') ||
+                       (tabName === 'inventory' && emoji === '🎒') ||
+                       (tabName === 'leaderboard' && emoji === '🏆');
+            });
+            
+            if (clickedTab) {
+                clickedTab.classList.add('active');
+            }
+            
+            // Show only the selected tab content
+            const tabContent = document.getElementById(tabName + 'Tab');
+            if (tabContent) {
+                tabContent.classList.add('active');
+                tabContent.style.display = 'block';
+            }
+            
+            // Load content based on tab
+            if (tabName === 'shop') {
+                renderShop();
+            } else if (tabName === 'inventory') {
+                renderInventory();
+            } else if (tabName === 'leaderboard') {
+                loadLeaderboard();
+            }
+        }
+
+        // Profile Setup - Completely Independent Selection Systems
+        let selectedAvatar = null;
+        let selectedColor = null;
+
+        function setupAvatarSelection() {
+            console.log('🎯 Setting up selection systems...');
+            
+            // AVATAR SELECTION SYSTEM (100% independent)
+            const avatarOptions = document.querySelectorAll('.avatar-option');
+            avatarOptions.forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    selectAvatar(this);
+                });
+                
+                option.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectAvatar(this);
+                });
+            });
+
+            // COLOR SELECTION SYSTEM (100% independent)
+            const colorOptions = document.querySelectorAll('.color-option');
+            colorOptions.forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    selectColor(this);
+                });
+                
+                option.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectColor(this);
+                });
+            });
+
+            // Set defaults after short delay
+            setTimeout(setDefaultSelections, 300);
+        }
+
+        function selectAvatar(element) {
+            // Remove selection from ALL avatars
+            document.querySelectorAll('.avatar-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Add selection to clicked avatar
+            element.classList.add('selected');
+            selectedAvatar = element.getAttribute('data-avatar');
+            
+            // Update status display
+            const avatarStatus = document.getElementById('avatarStatus');
+            if (avatarStatus) {
+                avatarStatus.innerHTML = `✓ Selected: ${selectedAvatar}`;
+                avatarStatus.style.color = '#10b981';
+                avatarStatus.style.fontWeight = '700';
+            }
+            
+            console.log('✅ Avatar selected:', selectedAvatar);
+            console.log('   Color remains:', selectedColor);
+            
+            // Update preview
+            updatePreview();
+            
+            // Visual feedback
+            element.style.animation = 'pulse 0.3s ease';
+            setTimeout(() => {
+                element.style.animation = '';
+            }, 300);
+        }
+
+        function selectColor(element) {
+            // Remove selection from ALL colors
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Add selection to clicked color
+            element.classList.add('selected');
+            selectedColor = element.getAttribute('data-color');
+            
+            // Get color name
+            const colorNames = {
+                '#6366f1': 'Blue',
+                '#ec4899': 'Pink',
+                '#10b981': 'Green',
+                '#f59e0b': 'Orange',
+                '#8b5cf6': 'Purple',
+                '#06b6d4': 'Cyan'
+            };
+            const colorName = colorNames[selectedColor] || 'Custom';
+            
+            // Update status display
+            const colorStatus = document.getElementById('colorStatus');
+            if (colorStatus) {
+                colorStatus.innerHTML = `✓ Selected: <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${selectedColor}; vertical-align: middle;"></span> ${colorName}`;
+                colorStatus.style.color = '#10b981';
+                colorStatus.style.fontWeight = '700';
+            }
+            
+            console.log('✅ Color selected:', selectedColor);
+            console.log('   Avatar remains:', selectedAvatar);
+            
+            // Update preview
+            updatePreview();
+            
+            // Visual feedback
+            element.style.animation = 'pulse 0.3s ease';
+            setTimeout(() => {
+                element.style.animation = '';
+            }, 300);
+        }
+
+        function updatePreview() {
+            const previewAvatar = document.getElementById('previewAvatar');
+            const previewName = document.getElementById('previewName');
+            const nameInput = document.getElementById('playerName');
+            const debugAvatar = document.getElementById('debugAvatar');
+            const debugColor = document.getElementById('debugColor');
+            
+            // Update main preview avatar
+            if (previewAvatar && selectedAvatar) {
+                previewAvatar.textContent = selectedAvatar;
+            }
+            
+            // Update main preview color
+            if (previewAvatar && selectedColor) {
+                previewAvatar.style.background = selectedColor;
+            }
+            
+            // Update name
+            if (previewName && nameInput) {
+                const name = nameInput.value.trim();
+                previewName.textContent = name || 'Player';
+            }
+            
+            // Update debug displays
+            if (debugAvatar && selectedAvatar) {
+                debugAvatar.textContent = selectedAvatar;
+            }
+            
+            if (debugColor && selectedColor) {
+                debugColor.style.background = selectedColor;
+            }
+            
+            console.log('📋 Preview updated:');
+            console.log('  Avatar:', selectedAvatar);
+            console.log('  Color:', selectedColor);
+            console.log('  Name:', nameInput?.value || 'Player');
+        }
+
+        function setDefaultSelections() {
+            // Set first avatar as default
+            const firstAvatar = document.querySelector('.avatar-option');
+            if (firstAvatar) {
+                selectAvatar(firstAvatar);
+            }
+            
+            // Set first color as default
+            const firstColor = document.querySelector('.color-option');
+            if (firstColor) {
+                selectColor(firstColor);
+            }
+            
+            console.log('🎯 Defaults set - Avatar:', selectedAvatar, 'Color:', selectedColor);
+            
+            // Add name input listener
+            const nameInput = document.getElementById('playerName');
+            if (nameInput) {
+                nameInput.addEventListener('input', updatePreview);
+                nameInput.addEventListener('keyup', updatePreview);
+            }
+        }
+
+        function getSelectedAvatar() {
+            if (selectedAvatar) return selectedAvatar;
+            const selected = document.querySelector('.avatar-option.selected');
+            return selected ? selected.getAttribute('data-avatar') : '🧑';
+        }
+
+        function getSelectedColor() {
+            if (selectedColor) return selectedColor;
+            const selected = document.querySelector('.color-option.selected');
+            return selected ? selected.getAttribute('data-color') : '#6366f1';
+        }
+
+        async function createProfile() {
+            const name = document.getElementById('playerName').value.trim();
+            
+            if (!name) {
+                showToast('Please enter your name', 'error');
+                return;
+            }
+            
+            // Check Firebase is initialized
+            if (!firebaseInitialized || !db) {
+                showToast('Connecting to database...', 'warning');
+                const initialized = initializeFirebase();
+                if (!initialized) {
+                    showToast('Cannot connect to database. Check internet connection.', 'error');
+                    return;
+                }
+                // Wait a moment for connection
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            // Get selections using getter functions
+            const avatar = getSelectedAvatar();
+            const color = getSelectedColor();
+            
+            console.log('Creating profile with:', { name, avatar, color });
+            
+            if (!avatar || !color) {
+                showToast('Please select avatar and color', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const playerData = {
+                    id: playerId,
+                    name,
+                    avatar,
+                    color,
+                    coins: 100,
+                    xp: 0,
+                    level: 1,
+                    items: [],
+                    questionsToday: 0,
+                    lastQuestionDate: new Date().toDateString(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('players').doc(playerId).set(playerData);
+                
+                localStorage.setItem('currentPlayerId', playerId);
+                currentPlayer = playerData;
+                
+                console.log('✅ Profile created successfully:', playerData);
+                
+                showScreen('dashboardScreen');
+                updateDashboard();
+                showToast('Welcome to MathMart Arena! 🎉', 'success');
+            } catch (error) {
+                console.error('❌ Error creating profile:', error);
+                
+                // Check for permission error
+                if (error.code === 'permission-denied' || error.message.includes('permission')) {
+                    showPermissionError();
+                } else {
+                    showToast('Failed to create profile: ' + error.message, 'error');
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showPermissionError() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 20px; padding: 2rem; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                    <div style="font-size: 2rem; text-align: center; margin-bottom: 1rem;">🔒</div>
+                    <h2 style="text-align: center; color: #ef4444; margin-bottom: 1rem;">Firebase Permissions Issue</h2>
+                    
+                    <p style="margin-bottom: 1rem; color: #6b7280;">Your Firebase Firestore database needs updated security rules. Follow these steps:</p>
+                    
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1f2937;">Step 1: Open Firebase Console</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">Go to: <a href="https://console.firebase.google.com" target="_blank" style="color: #6366f1;">console.firebase.google.com</a></div>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1f2937;">Step 2: Select Your Project</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">Click on: <strong>dingo-new-version</strong></div>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1f2937;">Step 3: Go to Firestore</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">Left menu → <strong>Firestore Database</strong></div>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1f2937;">Step 4: Update Rules</div>
+                        <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.5rem;">Click <strong>Rules</strong> tab → Replace with:</div>
+                        <div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+                        </div>
+                        <div style="font-size: 0.8rem; color: #ef4444; margin-top: 0.5rem;">⚠️ For development only! Add proper auth later.</div>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                        <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1f2937;">Step 5: Publish</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">Click <strong>Publish</strong> button</div>
+                    </div>
+                    
+                    <button onclick="this.parentElement.parentElement.remove()" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #6366f1, #ec4899); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 1rem;">
+                        Got It! I'll Update Rules
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <button onclick="continueOffline()" style="background: none; border: none; color: #6b7280; text-decoration: underline; cursor: pointer; font-size: 0.9rem;">
+                            Or continue in offline mode
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        function continueOffline() {
+            // Close permission modal
+            const modals = document.querySelectorAll('body > div');
+            modals.forEach(modal => {
+                if (modal.style.position === 'fixed' && modal.style.zIndex === '10000') {
+                    modal.remove();
+                }
+            });
+            
+            // Create profile locally
+            const name = document.getElementById('playerName').value.trim();
+            const avatar = getSelectedAvatar();
+            const color = getSelectedColor();
+            
+            const playerId = 'offline_' + Date.now();
+            currentPlayer = {
+                id: playerId,
+                name,
+                avatar,
+                color,
+                coins: 100,
+                xp: 0,
+                level: 1,
+                items: [],
+                questionsToday: 0,
+                lastQuestionDate: new Date().toDateString()
+            };
+            
+            localStorage.setItem('currentPlayerId', playerId);
+            localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+            
+            showScreen('dashboardScreen');
+            updateDashboard();
+            showToast('Playing in Offline Mode ⚠️', 'warning');
+            console.log('⚠️ Offline mode - data won\'t sync');
+        }
+
+        // Load existing player
+        async function loadPlayer() {
+            const playerId = localStorage.getItem('currentPlayerId');
+            if (!playerId) return false;
+            
+            // Check Firebase is initialized
+            if (!firebaseInitialized || !db) {
+                console.log('⏳ Initializing Firebase...');
+                const initialized = initializeFirebase();
+                if (!initialized) {
+                    console.error('❌ Cannot load player - Firebase not available');
+                    return false;
+                }
+                // Wait for connection
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            showLoading();
+            
+            try {
+                const doc = await db.collection('players').doc(playerId).get();
+                if (doc.exists) {
+                    currentPlayer = { id: doc.id, ...doc.data() };
+                    
+                    // Reset daily question count if new day
+                    const today = new Date().toDateString();
+                    if (currentPlayer.lastQuestionDate !== today) {
+                        currentPlayer.questionsToday = 0;
+                        currentPlayer.lastQuestionDate = today;
+                        await updatePlayer({ questionsToday: 0, lastQuestionDate: today });
+                    }
+                    
+                    showScreen('dashboardScreen');
+                    updateDashboard();
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ Error loading player:', error);
+                // Don't show error to user on load - they might not have internet
+                console.log('Continuing without saved profile...');
+            } finally {
+                showLoading(false);
+            }
+            
+            return false;
+        }
+
+        async function updatePlayer(updates) {
+            if (!currentPlayer) return;
+            
+            // Check Firebase is initialized
+            if (!firebaseInitialized || !db) {
+                console.warn('⚠️ Firebase not available - updates will be lost on refresh');
+                Object.assign(currentPlayer, updates);
+                updateDashboard();
+                return;
+            }
+            
+            try {
+                await db.collection('players').doc(currentPlayer.id).update(updates);
+                Object.assign(currentPlayer, updates);
+                updateDashboard();
+            } catch (error) {
+                console.error('❌ Error updating player:', error);
+                // Still update locally
+                Object.assign(currentPlayer, updates);
+                updateDashboard();
+            }
+        }
+
+        function updateDashboard() {
+            if (!currentPlayer) return;
+            
+            document.getElementById('dashAvatar').textContent = currentPlayer.avatar;
+            document.getElementById('dashAvatar').style.background = currentPlayer.color;
+            document.getElementById('dashName').textContent = currentPlayer.name;
+            document.getElementById('dashLevel').textContent = `Level ${currentPlayer.level}`;
+            document.getElementById('dashCoins').textContent = currentPlayer.coins;
+            document.getElementById('dashXP').textContent = currentPlayer.xp;
+            document.getElementById('questionsToday').textContent = currentPlayer.questionsToday || 0;
+            
+            // Update XP progress
+            const nextLevelXP = Math.pow(currentPlayer.level + 1, 2) * 100;
+            const currentLevelXP = Math.pow(currentPlayer.level, 2) * 100;
+            const xpInLevel = currentPlayer.xp - currentLevelXP;
+            const xpNeeded = nextLevelXP - currentLevelXP;
+            const progress = (xpInLevel / xpNeeded) * 100;
+            
+            document.getElementById('xpProgress').textContent = `${xpInLevel} / ${xpNeeded}`;
+            document.getElementById('xpBar').style.width = progress + '%';
+            
+            // Check for level up
+            if (currentPlayer.xp >= nextLevelXP) {
+                levelUp();
+            }
+        }
+
+        async function levelUp() {
+            currentPlayer.level++;
+            await updatePlayer({ level: currentPlayer.level });
+            
+            showToast(`🎉 Level Up! You're now Level ${currentPlayer.level}!`, 'success');
+            
+            // Add confetti animation
+            for (let i = 0; i < 50; i++) {
+                createConfetti();
+            }
+        }
+
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.style.position = 'fixed';
+            confetti.style.width = '10px';
+            confetti.style.height = '10px';
+            confetti.style.background = ['#fbbf24', '#ec4899', '#6366f1', '#10b981'][Math.floor(Math.random() * 4)];
+            confetti.style.left = Math.random() * window.innerWidth + 'px';
+            confetti.style.top = '-10px';
+            confetti.style.borderRadius = '50%';
+            confetti.style.pointerEvents = 'none';
+            confetti.style.zIndex = '9999';
+            
+            document.body.appendChild(confetti);
+            
+            const animation = confetti.animate([
+                { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+                { transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+            ], {
+                duration: 2000 + Math.random() * 1000,
+                easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            });
+            
+            animation.onfinish = () => confetti.remove();
+        }
+
+        // Shop System
+        function renderShop() {
+            const categories = ['all', 'common', 'uncommon', 'rare', 'epic', 'mythic', 'divine'];
+            const filterHtml = categories.map(cat => 
+                `<button class="category-btn ${cat === 'all' ? 'active' : ''}" onclick="filterShop('${cat}')">
+                    ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </button>`
+            ).join('');
+            
+            document.getElementById('categoryFilter').innerHTML = filterHtml;
+            filterShop('all');
+        }
+
+        function filterShop(category) {
+            // Update active category button
+            document.querySelectorAll('.category-btn').forEach(b => {
+                b.classList.remove('active');
+                if (b.textContent.toLowerCase().includes(category)) {
+                    b.classList.add('active');
+                }
+            });
+            
+            const filtered = category === 'all' ? allItems : allItems.filter(i => i.rarity === category);
+            
+            const itemsHtml = filtered.map(item => {
+                const owned = currentPlayer.items?.includes(item.id);
+                const rarityColor = getRarityColor(item.rarity);
+                
+                return `
+                    <div class="item-card ${owned ? 'owned' : ''}" onclick="showItemModal(${item.id})">
+                        <div class="item-emoji">${item.emoji}</div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-rarity" style="color: ${rarityColor};">${item.rarity}</div>
+                        <div class="item-price">💰 ${item.price}</div>
+                        <div class="item-bonus">${getBonusText(item.bonus)}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('shopItems').innerHTML = itemsHtml || '<p style="text-align: center; color: white;">No items found</p>';
+        }
+
+        function renderInventory() {
+            if (!currentPlayer.items || currentPlayer.items.length === 0) {
+                document.getElementById('inventoryItems').innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: white;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🎒</div>
+                        <div style="font-size: 1.2rem; font-weight: 600;">No items yet!</div>
+                        <div style="margin-top: 0.5rem; opacity: 0.8;">Visit the shop to purchase items</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const ownedItems = allItems.filter(i => currentPlayer.items.includes(i.id));
+            
+            const itemsHtml = ownedItems.map(item => {
+                const rarityColor = getRarityColor(item.rarity);
+                
+                return `
+                    <div class="item-card owned" onclick="showItemModal(${item.id})">
+                        <div class="item-emoji">${item.emoji}</div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-rarity" style="color: ${rarityColor};">${item.rarity}</div>
+                        <div class="item-bonus">${getBonusText(item.bonus)}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('inventoryItems').innerHTML = itemsHtml;
+        }
+
+        function getRarityColor(rarity) {
+            const colors = {
+                common: '#9ca3af',
+                uncommon: '#22c55e',
+                rare: '#3b82f6',
+                epic: '#a855f7',
+                mythic: '#f59e0b',
+                divine: '#fbbf24'
+            };
+            return colors[rarity] || '#9ca3af';
+        }
+
+        function getBonusText(bonus) {
+            const types = {
+                xp: '⭐ XP',
+                coin: '💰 Coins',
+                penalty: '🛡️ Penalty Reduction',
+                timer: '⏱️ Timer',
+                all: '🌟 All Rewards'
+            };
+            return `+${bonus.value}% ${types[bonus.type] || bonus.type}`;
+        }
+
+        function showItemModal(itemId) {
+            selectedItem = allItems.find(i => i.id === itemId);
+            if (!selectedItem) return;
+            
+            const owned = currentPlayer.items?.includes(itemId);
+            const rarityColor = getRarityColor(selectedItem.rarity);
+            
+            document.getElementById('modalItemName').textContent = selectedItem.name;
+            document.getElementById('modalItemEmoji').textContent = selectedItem.emoji;
+            document.getElementById('modalItemRarity').innerHTML = `<span style="color: ${rarityColor}; font-weight: 700; text-transform: uppercase;">${selectedItem.rarity}</span>`;
+            document.getElementById('modalItemPrice').textContent = `💰 ${selectedItem.price} coins`;
+            document.getElementById('modalItemBonus').textContent = getBonusText(selectedItem.bonus);
+            
+            const buyButton = document.getElementById('buyButton');
+            if (owned) {
+                buyButton.textContent = 'Already Owned';
+                buyButton.disabled = true;
+                buyButton.style.opacity = '0.5';
+            } else {
+                buyButton.textContent = 'Buy Now';
+                buyButton.disabled = false;
+                buyButton.style.opacity = '1';
+            }
+            
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('active');
+            selectedItem = null;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('itemModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'itemModal') {
+                closeModal();
+            }
+        });
+
+        // Logout Functions
+        function showLogoutConfirm() {
+            document.getElementById('logoutModal').classList.add('active');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('active');
+        }
+
+        function confirmLogout() {
+            console.log('🚪 Logging out...');
+            
+            // Clear current player data
+            currentPlayer = null;
+            
+            // Clear localStorage
+            localStorage.removeItem('currentPlayerId');
+            localStorage.removeItem('currentPlayer');
+            
+            // Close modal
+            closeLogoutModal();
+            
+            // Show toast
+            showToast('Logged out successfully! 👋', 'success');
+            
+            // Return to welcome screen
+            setTimeout(() => {
+                showScreen('welcomeScreen');
+                
+                // Reset form
+                document.getElementById('playerName').value = '';
+                
+                // Reset selections to defaults
+                setTimeout(() => {
+                    setDefaultSelections();
+                }, 200);
+            }, 500);
+        }
+
+        // Close logout modal when clicking outside
+        document.getElementById('logoutModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'logoutModal') {
+                closeLogoutModal();
+            }
+        });
+
+        async function buyItem() {
+            if (!selectedItem || !currentPlayer) return;
+            
+            if (currentPlayer.items?.includes(selectedItem.id)) {
+                showToast('You already own this item!', 'warning');
+                return;
+            }
+            
+            if (currentPlayer.coins < selectedItem.price) {
+                showToast('Not enough coins!', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const newCoins = currentPlayer.coins - selectedItem.price;
+                const newItems = [...(currentPlayer.items || []), selectedItem.id];
+                
+                await updatePlayer({
+                    coins: newCoins,
+                    items: newItems
+                });
+                
+                closeModal();
+                showToast(`${selectedItem.emoji} ${selectedItem.name} purchased!`, 'success');
+                renderShop();
+            } catch (error) {
+                console.error('Error buying item:', error);
+                showToast('Purchase failed', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Challenge System
+        function selectDifficulty(difficulty) {
+            if (currentPlayer.questionsToday >= 50) {
+                showToast('Daily limit reached! Come back tomorrow.', 'warning');
+                return;
+            }
+            
+            selectedDifficulty = difficulty;
+            
+            // Update button states
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+                const btnText = btn.textContent.toLowerCase();
+                if (btnText.includes(difficulty)) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            setTimeout(() => startChallenge(), 500);
+        }
+
+        function startChallenge() {
+            currentChallenge = {
+                difficulty: selectedDifficulty,
+                questions: [],
+                currentQuestion: 0,
+                correctAnswers: 0,
+                startTime: Date.now()
+            };
+            
+            // Generate 5 questions from different topics
+            const questionTypes = [
+                'simplification', 
+                'percentage', 
+                'ratio', 
+                'average',
+                'profit_loss',
+                'simple_interest',
+                'time_work',
+                'speed_distance',
+                'age_problem'
+            ];
+            
+            for (let i = 0; i < 5; i++) {
+                const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+                const q = MathGenerator.generateQuestion(type, selectedDifficulty);
+                currentChallenge.questions.push(q);
+            }
+            
+            document.getElementById('challengeContent').classList.remove('hidden');
+            document.querySelector('.challenge-header').classList.add('hidden');
+            
+            showQuestion();
+            startTimer();
+        }
+
+        function showQuestion() {
+            if (!currentChallenge) return;
+            
+            const q = currentChallenge.questions[currentChallenge.currentQuestion];
+            document.getElementById('questionText').textContent = q.question;
+            
+            // Display options in buttons
+            const optionButtons = document.querySelectorAll('.answer-option');
+            const labels = ['A', 'B', 'C', 'D'];
+            
+            q.options.forEach((option, index) => {
+                if (optionButtons[index]) {
+                    optionButtons[index].textContent = `${labels[index]}. ${option}`;
+                    optionButtons[index].classList.remove('selected', 'correct', 'wrong');
+                    optionButtons[index].disabled = false;
+                }
+            });
+            
+            // Reset selected answer
+            selectedAnswerIndex = null;
+            
+            // Update progress dots
+            const progressHtml = currentChallenge.questions.map((_, i) => {
+                let className = 'progress-dot';
+                if (i < currentChallenge.currentQuestion) className += ' completed';
+                if (i === currentChallenge.currentQuestion) className += ' active';
+                return `<div class="${className}"></div>`;
+            }).join('');
+            
+            document.getElementById('challengeProgress').innerHTML = progressHtml;
+        }
+
+        function selectAnswer(index) {
+            if (!currentChallenge) return;
+            
+            // Remove previous selection
+            document.querySelectorAll('.answer-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Add selection to clicked option
+            const optionButtons = document.querySelectorAll('.answer-option');
+            if (optionButtons[index]) {
+                optionButtons[index].classList.add('selected');
+                selectedAnswerIndex = index;
+            }
+        }
+
+        function startTimer() {
+            const duration = DIFFICULTY[selectedDifficulty].time;
+            let timeLeft = duration;
+            
+            updateTimerDisplay(timeLeft);
+            
+            challengeTimer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay(timeLeft);
+                
+                if (timeLeft <= 10) {
+                    document.getElementById('timerDisplay').classList.add('warning');
+                }
+                
+                if (timeLeft <= 0) {
+                    submitAnswer(true); // Auto-submit on timeout
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function submitAnswer(timeout = false) {
+            if (!currentChallenge) return;
+            
+            const q = currentChallenge.questions[currentChallenge.currentQuestion];
+            
+            // Check if user selected an answer
+            let correct = false;
+            if (!timeout && selectedAnswerIndex !== null) {
+                const selectedValue = q.options[selectedAnswerIndex];
+                correct = selectedValue === q.answer;
+            }
+            
+            // Visual feedback
+            const optionButtons = document.querySelectorAll('.answer-option');
+            optionButtons.forEach((btn, index) => {
+                btn.disabled = true;
+                // Highlight correct answer
+                if (q.options[index] === q.answer) {
+                    btn.classList.add('correct');
+                }
+                // Show wrong answer if user selected it
+                if (!timeout && index === selectedAnswerIndex && !correct) {
+                    btn.classList.add('wrong');
+                }
+            });
+            
+            if (correct) {
+                currentChallenge.correctAnswers++;
+                showToast('Correct! ✓', 'success');
+            } else {
+                if (timeout) {
+                    showToast('Time\'s up! ⏰', 'error');
+                } else {
+                    showToast(`Wrong! Answer: ${q.answer}`, 'error');
+                }
+            }
+            
+            currentChallenge.currentQuestion++;
+            
+            if (currentChallenge.currentQuestion >= currentChallenge.questions.length) {
+                setTimeout(() => endChallenge(true), 1500);
+            } else {
+                setTimeout(showQuestion, 1500);
+            }
+        }
+
+        async function endChallenge(completed = false) {
+            if (!currentChallenge) return;
+            
+            clearInterval(challengeTimer);
+            
+            if (!completed) {
+                showToast('Challenge ended', 'warning');
+                resetChallenge();
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const correct = currentChallenge.correctAnswers;
+                const config = DIFFICULTY[selectedDifficulty];
+                
+                // Calculate bonuses from items
+                let xpBonus = 0;
+                let coinBonus = 0;
+                let penaltyReduction = 0;
+                
+                if (currentPlayer.items) {
+                    currentPlayer.items.forEach(itemId => {
+                        const item = allItems.find(i => i.id === itemId);
+                        if (item) {
+                            if (item.bonus.type === 'xp' || item.bonus.type === 'all') {
+                                xpBonus += item.bonus.value;
+                            }
+                            if (item.bonus.type === 'coin' || item.bonus.type === 'all') {
+                                coinBonus += item.bonus.value;
+                            }
+                            if (item.bonus.type === 'penalty' || item.bonus.type === 'all') {
+                                penaltyReduction += item.bonus.value;
+                            }
+                        }
+                    });
+                }
+                
+                // Calculate rewards
+                let xpGained = Math.round(config.xpReward * correct * (1 + xpBonus / 100));
+                let coinsGained = Math.round(config.coinReward * correct * (1 + coinBonus / 100));
+                
+                // Calculate penalties
+                const wrong = 5 - correct;
+                let xpLost = Math.round(config.xpPenalty * wrong * (1 - penaltyReduction / 100));
+                
+                const totalXP = Math.max(0, currentPlayer.xp + xpGained - xpLost);
+                const totalCoins = currentPlayer.coins + coinsGained;
+                
+                await updatePlayer({
+                    xp: totalXP,
+                    coins: totalCoins,
+                    questionsToday: currentPlayer.questionsToday + 5
+                });
+                
+                // Show results
+                showToast(`Challenge Complete! ${correct}/5 correct`, 'success');
+                showToast(`+${xpGained} XP, +${coinsGained} coins`, 'success');
+                if (xpLost > 0) {
+                    showToast(`-${xpLost} XP penalty`, 'error');
+                }
+                
+                resetChallenge();
+            } catch (error) {
+                console.error('Error ending challenge:', error);
+                showToast('Failed to save results', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function resetChallenge() {
+            currentChallenge = null;
+            selectedDifficulty = null;
+            clearInterval(challengeTimer);
+            
+            document.getElementById('challengeContent').classList.add('hidden');
+            document.querySelector('.challenge-header').classList.remove('hidden');
+            document.getElementById('timerDisplay').classList.remove('warning');
+            document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // Leaderboard
+        async function loadLeaderboard() {
+            // Check Firebase is initialized
+            if (!firebaseInitialized || !db) {
+                document.getElementById('leaderboardList').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔌</div>
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">Not Connected</div>
+                        <div style="font-size: 0.9rem;">Check your internet connection to view leaderboard</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const snapshot = await db.collection('players')
+                    .orderBy('xp', 'desc')
+                    .limit(50)
+                    .get();
+                
+                const players = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const rankingScore = (data.level * 1000) + (data.items?.length || 0) * 10;
+                    players.push({ ...data, rankingScore });
+                });
+                
+                players.sort((a, b) => b.rankingScore - a.rankingScore);
+                
+                const leaderboardHtml = players.map((player, index) => {
+                    const rank = index + 1;
+                    let rankClass = 'other';
+                    if (rank === 1) rankClass = 'top1';
+                    else if (rank === 2) rankClass = 'top2';
+                    else if (rank === 3) rankClass = 'top3';
+                    
+                    return `
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-rank ${rankClass}">${rank}</div>
+                            <div class="leaderboard-player">
+                                <div class="leaderboard-name">${player.avatar} ${player.name}</div>
+                                <div class="leaderboard-stats">
+                                    Level ${player.level} • ${player.xp} XP • ${player.items?.length || 0} items
+                                </div>
+                            </div>
+                            <div class="leaderboard-score">${player.rankingScore.toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('leaderboardList').innerHTML = leaderboardHtml || 
+                    '<p style="text-align: center; padding: 2rem; color: #6b7280;">No players yet</p>';
+                
+            } catch (error) {
+                console.error('❌ Error loading leaderboard:', error);
+                document.getElementById('leaderboardList').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">Failed to load leaderboard</div>
+                        <div style="font-size: 0.9rem;">${error.message}</div>
+                    </div>
+                `;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Initialize app
+        window.addEventListener('load', async () => {
+            console.log('🚀 MathMart Arena starting...');
+            
+            // Hide loading overlay initially
+            showLoading(false);
+            
+            // Initialize Firebase first
+            const firebaseReady = initializeFirebase();
+            if (firebaseReady) {
+                console.log('✅ Firebase ready');
+            } else {
+                console.warn('⚠️ Firebase not available - game will work offline');
+            }
+            
+            // Setup avatar and color selection
+            setupAvatarSelection();
+            
+            // Try to load existing player (only if Firebase is available)
+            let hasPlayer = false;
+            if (firebaseInitialized) {
+                hasPlayer = await loadPlayer();
+            }
+            
+            // Show welcome screen if no player found
+            if (!hasPlayer) {
+                showScreen('welcomeScreen');
+            }
+            
+            console.log('✅ MathMart Arena ready!');
+        });
+
+        // Service Worker Registration (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.log('SW registration failed:', err);
+            });
+        }
+    </script>
+</body>
+</html>
