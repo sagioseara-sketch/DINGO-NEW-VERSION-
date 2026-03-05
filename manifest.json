@@ -9,7 +9,10 @@
   "theme_color": "#6366f1",
   "scope": "/",
   "lang": "en",
-  "categories": ["education", "games"],
+  "categories": [
+    "education",
+    "games"
+  ],
   "icons": [
     {
       "src": "icons/icon-72.png",
