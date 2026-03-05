@@ -1,18 +1,17 @@
 {
-  "name": "MathMart Arena",
-  "short_name": "MathMart",
-  "description": "Master Math. Compete Globally. Dominate Exams.",
-  "start_url": "/index.html",
+  "background_color": "#ffffff",
+  "description": "MathMart Arena - Competitive Math Learning Game",
+  "dir": "ltr",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0a0a1a",
-  "theme_color": "#6366f1",
+  "name": "sagioseara-sketch.github",
+  "orientation": "any",
   "scope": "/",
-  "lang": "en",
-  "categories": [
-    "education",
-    "games"
-  ],
+  "short_name": "sagioseara-sketch.github",
+  "start_url": "/",
+  "theme_color": "#6366f1"
+}
+
+  
   "icons": [
     {
       "src": "icons/icon-72.png",
