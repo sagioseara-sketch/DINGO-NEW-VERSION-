@@ -13,18 +13,18 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         
     - name: Setup Java JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '13'
         
     - name: Install Cordova
       run: |
@@ -83,7 +83,7 @@ jobs:
         cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../mathmart-arena-debug.apk
         
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mathmart-arena-apk
         path: mathmart-arena-debug.apk
