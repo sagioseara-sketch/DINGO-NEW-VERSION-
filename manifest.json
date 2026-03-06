@@ -4,10 +4,13 @@
   "description": "Competitive Math Learning Platform - Master mathematics, reasoning, and English through competitive challenges designed for banking and competitive exam preparation",
   "start_url": "/DINGO-NEW-VERSION-/",
   "scope": "/DINGO-NEW-VERSION-/",
+  "id": "/DINGO-NEW-VERSION-/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "orientation": "portrait",
   "background_color": "#6366f1",
   "theme_color": "#6366f1",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon-72.png",
