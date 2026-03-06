@@ -1,0 +1,134 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: '8.9'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y imagemagick
+        
+    - name: Install Cordova
+      run: |
+        npm install -g cordova@12.0.0
+        cordova --version
+        
+    - name: Create project
+      run: |
+        cordova create mathmart com.agames.mathmart.arena "MathMart Arena"
+        cd mathmart
+        ls -la
+        
+    - name: Generate icon
+      run: |
+        cd mathmart
+        mkdir -p res/icon/android
+        convert -background none ../icons/mathmart-arena-icon.svg -resize 192x192 res/icon/android/icon.png
+        ls -lh res/icon/android/icon.png
+        
+    - name: Copy application files
+      run: |
+        cp index.html mathmart/www/index.html
+        cp manifest.json mathmart/www/manifest.json  
+        cp config.xml mathmart/config.xml
+        echo "Files copied successfully"
+        
+    - name: Show config.xml for verification
+      run: |
+        echo "=== Config.xml contents ==="
+        cat mathmart/config.xml
+        
+    - name: Add Android platform
+      run: |
+        cd mathmart
+        cordova platform add android@12.0.1 --verbose
+        echo "Platform added successfully"
+        
+    - name: Attempt build with maximum verbosity
+      id: build_attempt
+      continue-on-error: true
+      run: |
+        cd mathmart
+        echo "=== Starting Cordova build ==="
+        cordova build android --debug --verbose -- --stacktrace --info --warning-mode all 2>&1 | tee ../full-build-log.txt
+        
+    - name: Check build result and display errors
+      run: |
+        cd mathmart
+        if [ -d "platforms/android/app/build/outputs/apk/debug" ]; then
+          echo "✓ Build succeeded - APK directory exists"
+          find platforms/android/app/build/outputs/apk -name "*.apk"
+          exit 0
+        else
+          echo "✗ Build failed - APK directory not created"
+          echo ""
+          echo "=== DISPLAYING FULL BUILD LOG ==="
+          cat ../full-build-log.txt
+          echo ""
+          echo "=== END OF BUILD LOG ==="
+          exit 1
+        fi
+        
+    - name: Copy APK if exists
+      if: success()
+      run: |
+        cd mathmart
+        APK_FILE=$(find platforms/android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+        if [ -n "$APK_FILE" ]; then
+          cp "$APK_FILE" ../mathmart-arena.apk
+          ls -lh ../mathmart-arena.apk
+        fi
+        
+    - name: Upload APK
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: MathMart-Arena-APK
+        path: mathmart-arena.apk
+        
+    - name: Upload full build log
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: complete-build-log
+        path: full-build-log.txt
+        if-no-files-found: ignore
+        
+    - name: Create Release
+      if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v2.0.${{ github.run_number }}
+        name: MathMart Arena v2.0.${{ github.run_number }}
+        body: MathMart Arena Android APK - Install on Android 5.1+
+        files: mathmart-arena.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
