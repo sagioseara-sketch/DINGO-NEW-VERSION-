@@ -1,39 +1,101 @@
-name: Build APK
+name: Build Android APK
 
 on:
-workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-build:
-runs-on: ubuntu-latest
-
-steps:
-  - uses: actions/checkout@v4
-
-  - uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
-
-  - uses: actions/setup-node@v4
-    with:
-      node-version: '18'
-
-  - uses: android-actions/setup-android@v3
-
-  - name: Install Bubblewrap
-    run: npm install -g @bubblewrap/cli
-
-  - name: Build TWA
-    run: bubblewrap build --skipPwaValidation
-
-  - name: Build APK with Gradle
-    run: |
-      cd android
-      ./gradlew assembleRelease
-
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: android-apk
-      path: android/app/build/outputs/apk/release/*.apk
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+        
+    - name: Install Cordova
+      run: |
+        npm install -g cordova
+        
+    - name: Create Cordova project
+      run: |
+        cordova create mathmart-arena com.agames.mathmart.arena "MathMart Arena"
+        cd mathmart-arena
+        cordova platform add android
+        
+    - name: Copy application files
+      run: |
+        cp index.html mathmart-arena/www/
+        cp manifest.json mathmart-arena/www/
+        cp config.xml mathmart-arena/
+        cp -r icons mathmart-arena/www/ || true
+        
+    - name: Generate app icons
+      run: |
+        cd mathmart-arena
+        # Install sharp for image processing
+        npm install sharp-cli -g
+        # Create icons directory if it doesn't exist
+        mkdir -p www/icons
+        mkdir -p res/icon/android
+        # Convert SVG to PNG at different sizes (using imagemagick as fallback)
+        if command -v convert &> /dev/null; then
+          convert -background none ../mathmart-arena-icon.svg -resize 72x72 www/icons/icon-72x72.png
+          convert -background none ../mathmart-arena-icon.svg -resize 96x96 www/icons/icon-96x96.png
+          convert -background none ../mathmart-arena-icon.svg -resize 128x128 www/icons/icon-128x128.png
+          convert -background none ../mathmart-arena-icon.svg -resize 144x144 www/icons/icon-144x144.png
+          convert -background none ../mathmart-arena-icon.svg -resize 152x152 www/icons/icon-152x152.png
+          convert -background none ../mathmart-arena-icon.svg -resize 192x192 www/icons/icon-192x192.png
+          convert -background none ../mathmart-arena-icon.svg -resize 384x384 www/icons/icon-384x384.png
+          convert -background none ../mathmart-arena-icon.svg -resize 512x512 www/icons/icon-512x512.png
+          # Android specific icons
+          convert -background none ../mathmart-arena-icon.svg -resize 36x36 res/icon/android/ldpi.png
+          convert -background none ../mathmart-arena-icon.svg -resize 48x48 res/icon/android/mdpi.png
+          convert -background none ../mathmart-arena-icon.svg -resize 72x72 res/icon/android/hdpi.png
+          convert -background none ../mathmart-arena-icon.svg -resize 96x96 res/icon/android/xhdpi.png
+          convert -background none ../mathmart-arena-icon.svg -resize 144x144 res/icon/android/xxhdpi.png
+          convert -background none ../mathmart-arena-icon.svg -resize 192x192 res/icon/android/xxxhdpi.png
+        fi
+        
+    - name: Build APK
+      run: |
+        cd mathmart-arena
+        cordova build android --release
+        
+    - name: Sign APK
+      run: |
+        cd mathmart-arena
+        # For unsigned APK, copy the debug version
+        # In production, you would sign with your keystore
+        cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../mathmart-arena-debug.apk
+        
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: mathmart-arena-apk
+        path: mathmart-arena-debug.apk
+        
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        files: mathmart-arena-debug.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
