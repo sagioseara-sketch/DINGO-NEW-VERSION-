@@ -1,0 +1,79 @@
+HTML CODE TO ADD TO YOUR INDEX.HTML FILE
+==========================================
+
+Copy the line below and paste it inside the <head> section of your index.html file:
+
+<link rel="manifest" href="manifest.json">
+
+
+WHERE TO PLACE THIS CODE
+=========================
+
+Open your index.html file in GitHub and locate the <head> section near the top of the file.
+
+The <head> section looks like this:
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathMart Arena</title>
+    
+    <!-- ADD THE MANIFEST LINK HERE -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Your existing styles and scripts below -->
+    ...
+</head>
+
+
+COMPLETE EXAMPLE
+================
+
+If your current index.html head section looks like this:
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathMart Arena</title>
+    <style>
+        /* Your styles */
+    </style>
+</head>
+
+
+It should look like this after adding the manifest link:
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathMart Arena</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Your styles */
+    </style>
+</head>
+
+
+VERIFICATION
+============
+
+After adding this line and committing the change, you can verify it works by:
+
+1. Opening your browser's developer tools (F12 key)
+2. Going to the Application or Storage tab
+3. Looking for "Manifest" in the left sidebar
+4. You should see your manifest.json file content displayed
+
+Alternatively, view the page source (right-click → View Page Source) and confirm the manifest link appears in the head section.
+
+
+IMPORTANT NOTES
+===============
+
+The manifest link must be placed in the <head> section, not in the <body> section.
+
+The filename must be exactly "manifest.json" with lowercase letters.
+
+The manifest.json file must be in the same directory as your index.html file (repository root).
+
+This single line of code is all you need to add to your HTML file. Do not add multiple manifest links or modify the existing HTML structure beyond adding this one line.
