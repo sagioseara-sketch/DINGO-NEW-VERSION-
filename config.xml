@@ -19,11 +19,15 @@
     <platform name="android">
         <allow-intent href="market:*" />
         
-        <!-- Modern splash screen configuration using preferences -->
+        <!-- Gradle version control -->
+        <preference name="GradleVersion" value="8.9" />
+        <preference name="AndroidGradlePluginVersion" value="8.5.1" />
+        
+        <!-- Modern splash screen configuration -->
         <preference name="AndroidWindowSplashScreenAnimatedIcon" value="res/icon/android/icon.png" />
         <preference name="AndroidWindowSplashScreenBackground" value="#6366f1" />
         
-        <!-- Simplified icon configuration - single adaptive icon -->
+        <!-- Icon configuration -->
         <resource-file src="res/icon/android/icon.png" target="app/src/main/res/mipmap-hdpi/ic_launcher.png" />
         <resource-file src="res/icon/android/icon.png" target="app/src/main/res/mipmap-mdpi/ic_launcher.png" />
         <resource-file src="res/icon/android/icon.png" target="app/src/main/res/mipmap-xhdpi/ic_launcher.png" />
