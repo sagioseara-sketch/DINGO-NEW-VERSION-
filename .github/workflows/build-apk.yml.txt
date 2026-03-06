@@ -1,0 +1,111 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y imagemagick unzip
+        
+    - name: Install Gradle 8.9
+      run: |
+        cd /tmp
+        wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+        unzip -q gradle-8.9-bin.zip
+        sudo mv gradle-8.9 /opt/gradle
+        echo "/opt/gradle/bin" >> $GITHUB_PATH
+        /opt/gradle/bin/gradle --version
+        
+    - name: Install Cordova
+      run: npm install -g cordova@12.0.0
+        
+    - name: Create Cordova project
+      run: cordova create mathmart com.agames.mathmart.arena "MathMart Arena"
+        
+    - name: Generate icon
+      run: |
+        cd mathmart
+        mkdir -p res/icon/android
+        convert -background none ../icons/mathmart-arena-icon.svg -resize 192x192 res/icon/android/icon.png
+        
+    - name: Copy files
+      run: |
+        cp index.html mathmart/www/index.html
+        cp manifest.json mathmart/www/manifest.json
+        cp config.xml mathmart/config.xml
+        
+    - name: Add Android platform
+      run: |
+        cd mathmart
+        export PATH=/opt/gradle/bin:$PATH
+        cordova platform add android@12.0.1
+        
+    - name: Build with detailed error output
+      id: build
+      run: |
+        cd mathmart
+        export PATH=/opt/gradle/bin:$PATH
+        cordova build android --debug --verbose -- --stacktrace --info 2>&1 | tee build-log.txt
+      continue-on-error: true
+        
+    - name: Display build errors if failed
+      if: steps.build.outcome == 'failure'
+      run: |
+        cd mathmart
+        echo "=== BUILD FAILED - Displaying Error Details ==="
+        echo ""
+        echo "=== Last 200 lines of build output ==="
+        tail -n 200 build-log.txt
+        echo ""
+        echo "=== Searching for error patterns ==="
+        grep -i "error:" build-log.txt | head -n 50 || echo "No specific errors found with 'error:' pattern"
+        grep -i "FAILURE" build-log.txt | head -n 20 || echo "No FAILURE markers found"
+        grep -i "exception" build-log.txt | head -n 20 || echo "No exceptions found"
+        exit 1
+        
+    - name: Copy APK if build succeeded
+      if: steps.build.outcome == 'success'
+      run: |
+        cd mathmart
+        find platforms/android/app/build/outputs/apk -name "*.apk" -type f
+        APK_PATH=$(find platforms/android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+        cp "$APK_PATH" ../mathmart-arena.apk
+        
+    - name: Upload APK
+      if: steps.build.outcome == 'success'
+      uses: actions/upload-artifact@v3
+      with:
+        name: MathMart-Arena-APK
+        path: mathmart-arena.apk
+        
+    - name: Upload build log for analysis
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-log
+        path: mathmart/build-log.txt
+        if-no-files-found: ignore
