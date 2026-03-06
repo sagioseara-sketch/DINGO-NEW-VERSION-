@@ -29,15 +29,46 @@
             --epic: #a855f7;
             --mythic: #f59e0b;
             --divine: #fbbf24;
+            
+            /* Theme Variables */
+            --bg-primary: #667eea;
+            --bg-secondary: #764ba2;
+            --bg-card: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1e293b;
+            --bg-secondary: #0f172a;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border-color: #475569;
+            --dark: #f1f5f9;
+            --light: #1e293b;
+        }
+
+        [data-theme="night"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #2d2d2d;
+            --text-primary: #fbbf24;
+            --text-secondary: #d97706;
+            --border-color: #404040;
+            --dark: #fbbf24;
+            --light: #1a1a1a;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             min-height: 100vh;
             overflow-x: hidden;
             overflow-y: auto;
             position: relative;
+            transition: background 0.3s ease;
         }
 
         .container {
@@ -1052,6 +1083,7 @@
         .player-avatar {
             width: 60px;
             height: 60px;
+            aspect-ratio: 1/1;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1059,6 +1091,155 @@
             font-size: 2rem;
             border: 3px solid white;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .player-avatar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .profile-dropdown {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            padding: 1rem;
+            min-width: 280px;
+            z-index: 1000;
+            display: none;
+            animation: dropdownSlide 0.2s ease;
+        }
+
+        .profile-dropdown.active {
+            display: block;
+        }
+
+        @keyframes dropdownSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .profile-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #f3f4f6;
+            margin-bottom: 0.75rem;
+        }
+
+        .profile-dropdown-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        .profile-dropdown-info {
+            flex: 1;
+        }
+
+        .profile-dropdown-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .profile-dropdown-level {
+            font-size: 0.85rem;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .profile-dropdown-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .profile-dropdown-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .profile-dropdown-stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .profile-dropdown-stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .profile-dropdown-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .profile-dropdown-btn {
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .profile-dropdown-btn.edit {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .profile-dropdown-btn.edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .profile-dropdown-btn.logout {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .profile-dropdown-btn.logout:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
 
         .player-details {
@@ -2194,37 +2375,66 @@
         <div class="container">
             <div class="dashboard-header">
                 <div class="player-info">
-                    <div class="player-avatar" id="dashAvatar">🧑</div>
+                    <div style="position: relative;">
+                        <div class="player-avatar" id="dashAvatar" onclick="toggleProfileDropdown()">🧑</div>
+                        
+                        <!-- Profile Dropdown -->
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-dropdown-header">
+                                <div class="profile-dropdown-avatar" id="dropdownAvatar">🧑</div>
+                                <div class="profile-dropdown-info">
+                                    <div class="profile-dropdown-name" id="dropdownName">Player</div>
+                                    <div class="profile-dropdown-level" id="dropdownLevel">Level 1</div>
+                                </div>
+                            </div>
+                            
+                            <div class="profile-dropdown-stats">
+                                <div class="profile-dropdown-stat">
+                                    <span class="profile-dropdown-stat-label">⭐ XP</span>
+                                    <span class="profile-dropdown-stat-value" id="dropdownXP">0</span>
+                                </div>
+                                <div class="profile-dropdown-stat">
+                                    <span class="profile-dropdown-stat-label">🔥 Streak</span>
+                                    <span class="profile-dropdown-stat-value" id="dropdownStreak">0</span>
+                                </div>
+                                <div class="profile-dropdown-stat">
+                                    <span class="profile-dropdown-stat-label">📊 Total Qs</span>
+                                    <span class="profile-dropdown-stat-value" id="dropdownTotal">0</span>
+                                </div>
+                            </div>
+                            
+                            <div style="padding: 0.75rem 0; border-top: 2px solid #f3f4f6; border-bottom: 2px solid #f3f4f6; margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">🎨 Theme</div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button onclick="setTheme('light')" style="flex: 1; padding: 0.5rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.3s;" id="theme-light">
+                                        ☀️ Light
+                                    </button>
+                                    <button onclick="setTheme('dark')" style="flex: 1; padding: 0.5rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.3s;" id="theme-dark">
+                                        🌑 Dark
+                                    </button>
+                                    <button onclick="setTheme('night')" style="flex: 1; padding: 0.5rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.3s;" id="theme-night">
+                                        🌙 Night
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="profile-dropdown-actions">
+                                <button class="profile-dropdown-btn edit" onclick="showEditProfile(); toggleProfileDropdown();">
+                                    ✏️ Edit Profile
+                                </button>
+                                <button class="profile-dropdown-btn logout" onclick="showLogoutConfirm(); toggleProfileDropdown();">
+                                    🚪 Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="player-details">
                         <div class="player-name" id="dashName">Player</div>
                         <div class="player-level" id="dashLevel">Level 1</div>
                     </div>
-                    <div style="margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
-                        <button onclick="showEditProfile()" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); transition: all 0.3s;">
-                            ✏️ Edit
-                        </button>
-                        <button onclick="showLogoutConfirm()" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: all 0.3s;">
-                            🚪 Logout
-                        </button>
-                    </div>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="dashCoins">100</div>
-                        <div class="stat-label">💰 Coins</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="dashXP">0</div>
-                        <div class="stat-label">⭐ XP</div>
-                    </div>
-                    <div class="stat-box" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;">
-                        <div class="stat-value" id="dashStreak" style="color:white;">0</div>
-                        <div class="stat-label" style="color:rgba(255,255,255,0.85);">🔥 Streak</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="dashTotal">0</div>
-                        <div class="stat-label">📊 Total Qs</div>
+                    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 0.6rem 1.2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <span style="font-size: 1.5rem;">💰</span>
+                        <span style="font-size: 1.3rem; font-weight: 700;" id="dashCoins">100</span>
                     </div>
                 </div>
 
@@ -2325,6 +2535,9 @@
                         <div class="answer-explanation" id="answerExplanation"></div>
                     </div>
 
+                    <button class="btn" onclick="useHint()" id="hintButton" style="width: 100%; margin-bottom: 0.5rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                        💡 Hint #1 (100 coins)
+                    </button>
                     <button class="btn btn-success" onclick="submitAnswer()" style="width: 100%; margin-bottom: 0.5rem;">
                         ✓ Submit Answer
                     </button>
@@ -2811,44 +3024,44 @@
             { id: 140, name: 'Battle Axe', emoji: '🪓', rarity: 'epic', price: 660, bonus: { type: 'penalty', value: 17 } },
 
             // Mythic (4 items)
-            { id: 45, name: 'Phoenix', emoji: '🦅', rarity: 'mythic', price: 1200, bonus: { type: 'all', value: 18 } },
-            { id: 46, name: 'Unicorn', emoji: '🦄', rarity: 'mythic', price: 1250, bonus: { type: 'xp', value: 25 } },
-            { id: 47, name: 'Wizard Hat', emoji: '🎩', rarity: 'mythic', price: 1300, bonus: { type: 'coin', value: 25 } },
-            { id: 48, name: 'Magic Book', emoji: '📖', rarity: 'mythic', price: 1280, bonus: { type: 'all', value: 20 } },
-            { id: 51, name: 'Golden Sword', emoji: '⚔️', rarity: 'mythic', price: 1220, bonus: { type: 'xp', value: 23 } },
-            { id: 52, name: 'Crystal Shield', emoji: '🛡️', rarity: 'mythic', price: 1240, bonus: { type: 'penalty', value: 20 } },
-            { id: 116, name: 'UFO', emoji: '🛸', rarity: 'mythic', price: 1210, bonus: { type: 'all', value: 19 } },
-            { id: 117, name: 'Robot', emoji: '🤖', rarity: 'mythic', price: 1260, bonus: { type: 'xp', value: 24 } },
-            { id: 118, name: 'Alien', emoji: '👽', rarity: 'mythic', price: 1230, bonus: { type: 'coin', value: 24 } },
-            { id: 119, name: 'Rocket Ship', emoji: '🚀', rarity: 'mythic', price: 1270, bonus: { type: 'timer', value: 25 } },
-            { id: 120, name: 'Space Station', emoji: '🛰️', rarity: 'mythic', price: 1290, bonus: { type: 'all', value: 21 } },
-            { id: 121, name: 'Crystal Orb', emoji: '🔮', rarity: 'mythic', price: 1240, bonus: { type: 'xp', value: 23 } },
-            { id: 122, name: 'Time Machine', emoji: '⏰', rarity: 'mythic', price: 1280, bonus: { type: 'timer', value: 26 } },
-            { id: 123, name: 'Portal', emoji: '🌀', rarity: 'mythic', price: 1250, bonus: { type: 'all', value: 20 } },
-            { id: 124, name: 'Energy Core', emoji: '⚡', rarity: 'mythic', price: 1260, bonus: { type: 'coin', value: 25 } },
-            { id: 125, name: 'Power Crystal', emoji: '💎', rarity: 'mythic', price: 1270, bonus: { type: 'xp', value: 26 } },
-            { id: 146, name: 'Phoenix Feather', emoji: '🪶', rarity: 'mythic', price: 1290, bonus: { type: 'all', value: 22 } },
-            { id: 147, name: 'Dragon Scale', emoji: '🐲', rarity: 'mythic', price: 1270, bonus: { type: 'xp', value: 27 } },
-            { id: 148, name: 'Elixir', emoji: '🧪', rarity: 'mythic', price: 1250, bonus: { type: 'coin', value: 26 } },
-            { id: 149, name: 'Potion of Power', emoji: '🧬', rarity: 'mythic', price: 1280, bonus: { type: 'all', value: 21 } },
-            { id: 150, name: 'Infinity Gauntlet', emoji: '👊', rarity: 'mythic', price: 1300, bonus: { type: 'all', value: 23 } },
+            { id: 45, name: 'Phoenix', emoji: '🦅', rarity: 'mythic', price: 3600, bonus: { type: 'all', value: 18 } },
+            { id: 46, name: 'Unicorn', emoji: '🦄', rarity: 'mythic', price: 3750, bonus: { type: 'xp', value: 25 } },
+            { id: 47, name: 'Wizard Hat', emoji: '🎩', rarity: 'mythic', price: 3900, bonus: { type: 'coin', value: 25 } },
+            { id: 48, name: 'Magic Book', emoji: '📖', rarity: 'mythic', price: 3840, bonus: { type: 'all', value: 20 } },
+            { id: 51, name: 'Golden Sword', emoji: '⚔️', rarity: 'mythic', price: 3660, bonus: { type: 'xp', value: 23 } },
+            { id: 52, name: 'Crystal Shield', emoji: '🛡️', rarity: 'mythic', price: 3720, bonus: { type: 'penalty', value: 20 } },
+            { id: 116, name: 'UFO', emoji: '🛸', rarity: 'mythic', price: 3630, bonus: { type: 'all', value: 19 } },
+            { id: 117, name: 'Robot', emoji: '🤖', rarity: 'mythic', price: 3780, bonus: { type: 'xp', value: 24 } },
+            { id: 118, name: 'Alien', emoji: '👽', rarity: 'mythic', price: 3690, bonus: { type: 'coin', value: 24 } },
+            { id: 119, name: 'Rocket Ship', emoji: '🚀', rarity: 'mythic', price: 3810, bonus: { type: 'timer', value: 25 } },
+            { id: 120, name: 'Space Station', emoji: '🛰️', rarity: 'mythic', price: 3870, bonus: { type: 'all', value: 21 } },
+            { id: 121, name: 'Crystal Orb', emoji: '🔮', rarity: 'mythic', price: 3720, bonus: { type: 'xp', value: 23 } },
+            { id: 122, name: 'Time Machine', emoji: '⏰', rarity: 'mythic', price: 3840, bonus: { type: 'timer', value: 26 } },
+            { id: 123, name: 'Portal', emoji: '🌀', rarity: 'mythic', price: 3750, bonus: { type: 'all', value: 20 } },
+            { id: 124, name: 'Energy Core', emoji: '⚡', rarity: 'mythic', price: 3780, bonus: { type: 'coin', value: 25 } },
+            { id: 125, name: 'Power Crystal', emoji: '💎', rarity: 'mythic', price: 3810, bonus: { type: 'xp', value: 26 } },
+            { id: 146, name: 'Phoenix Feather', emoji: '🪶', rarity: 'mythic', price: 3870, bonus: { type: 'all', value: 22 } },
+            { id: 147, name: 'Dragon Scale', emoji: '🐲', rarity: 'mythic', price: 3810, bonus: { type: 'xp', value: 27 } },
+            { id: 148, name: 'Elixir', emoji: '🧪', rarity: 'mythic', price: 3750, bonus: { type: 'coin', value: 26 } },
+            { id: 149, name: 'Potion of Power', emoji: '🧬', rarity: 'mythic', price: 3840, bonus: { type: 'all', value: 21 } },
+            { id: 150, name: 'Infinity Gauntlet', emoji: '👊', rarity: 'mythic', price: 3900, bonus: { type: 'all', value: 23 } },
 
             // Divine (2 items)
-            { id: 49, name: 'Divine Crown', emoji: '👸', rarity: 'divine', price: 2500, bonus: { type: 'all', value: 30 } },
-            { id: 50, name: 'Infinity Stone', emoji: '♾️', rarity: 'divine', price: 3000, bonus: { type: 'all', value: 35 } },
-            { id: 53, name: 'Angel Wings', emoji: '👼', rarity: 'divine', price: 2600, bonus: { type: 'all', value: 32 } },
-            { id: 54, name: 'Holy Grail', emoji: '🏺', rarity: 'divine', price: 2800, bonus: { type: 'xp', value: 40 } },
-            { id: 55, name: 'Cosmic Ring', emoji: '💫', rarity: 'divine', price: 2700, bonus: { type: 'all', value: 33 } },
-            { id: 126, name: 'Sun', emoji: '☀️', rarity: 'divine', price: 2650, bonus: { type: 'all', value: 34 } },
-            { id: 127, name: 'Moon', emoji: '🌙', rarity: 'divine', price: 2750, bonus: { type: 'xp', value: 38 } },
-            { id: 128, name: 'Star Cluster', emoji: '✨', rarity: 'divine', price: 2850, bonus: { type: 'coin', value: 38 } },
-            { id: 129, name: 'Galaxy', emoji: '🌌', rarity: 'divine', price: 2900, bonus: { type: 'all', value: 36 } },
-            { id: 130, name: 'Black Hole', emoji: '🕳️', rarity: 'divine', price: 2950, bonus: { type: 'timer', value: 40 } },
-            { id: 131, name: 'Supernova', emoji: '💥', rarity: 'divine', price: 3100, bonus: { type: 'all', value: 37 } },
-            { id: 132, name: 'Nebula', emoji: '🌟', rarity: 'divine', price: 2800, bonus: { type: 'xp', value: 39 } },
-            { id: 133, name: 'Comet', emoji: '☄️', rarity: 'divine', price: 2700, bonus: { type: 'coin', value: 36 } },
-            { id: 134, name: 'Aurora', emoji: '🌠', rarity: 'divine', price: 2850, bonus: { type: 'penalty', value: 35 } },
-            { id: 135, name: 'Meteor', emoji: '🌌', rarity: 'divine', price: 2750, bonus: { type: 'all', value: 35 } }
+            { id: 49, name: 'Divine Crown', emoji: '👸', rarity: 'divine', price: 7500, bonus: { type: 'all', value: 30 } },
+            { id: 50, name: 'Infinity Stone', emoji: '♾️', rarity: 'divine', price: 9000, bonus: { type: 'all', value: 35 } },
+            { id: 53, name: 'Angel Wings', emoji: '👼', rarity: 'divine', price: 7800, bonus: { type: 'all', value: 32 } },
+            { id: 54, name: 'Holy Grail', emoji: '🏺', rarity: 'divine', price: 8400, bonus: { type: 'xp', value: 40 } },
+            { id: 55, name: 'Cosmic Ring', emoji: '💫', rarity: 'divine', price: 8100, bonus: { type: 'all', value: 33 } },
+            { id: 126, name: 'Sun', emoji: '☀️', rarity: 'divine', price: 7950, bonus: { type: 'all', value: 34 } },
+            { id: 127, name: 'Moon', emoji: '🌙', rarity: 'divine', price: 8250, bonus: { type: 'xp', value: 38 } },
+            { id: 128, name: 'Star Cluster', emoji: '✨', rarity: 'divine', price: 8550, bonus: { type: 'coin', value: 38 } },
+            { id: 129, name: 'Galaxy', emoji: '🌌', rarity: 'divine', price: 8700, bonus: { type: 'all', value: 36 } },
+            { id: 130, name: 'Black Hole', emoji: '🕳️', rarity: 'divine', price: 8850, bonus: { type: 'timer', value: 40 } },
+            { id: 131, name: 'Supernova', emoji: '💥', rarity: 'divine', price: 9300, bonus: { type: 'all', value: 37 } },
+            { id: 132, name: 'Nebula', emoji: '🌟', rarity: 'divine', price: 8400, bonus: { type: 'xp', value: 39 } },
+            { id: 133, name: 'Comet', emoji: '☄️', rarity: 'divine', price: 8100, bonus: { type: 'coin', value: 36 } },
+            { id: 134, name: 'Aurora', emoji: '🌠', rarity: 'divine', price: 8550, bonus: { type: 'penalty', value: 35 } },
+            { id: 135, name: 'Meteor', emoji: '🌌', rarity: 'divine', price: 8250, bonus: { type: 'all', value: 35 } }
         ];
 
         allItems = ITEMS;
@@ -4662,26 +4875,34 @@ service cloud.firestore {
                 startTime: Date.now()
             };
             
-            // Generate 5 questions from different topics
-            const questionTypes = [
-                'simplification', 
-                'percentage', 
-                'ratio', 
-                'average',
-                'profit_loss',
-                'simple_interest',
-                'time_work',
-                'speed_distance',
-                'age_problem',
-                'number_series',
-                'pattern_completion',
-                'logical_reasoning',
-                'english_grammar',
-                'error_detection'
-            ];
+            // Reset hints counter
+            hintsUsedInChallenge = 0;
+            updateHintButton();
             
+            // Only use question types that have working generators
+            const mathTypes = ['simplification', 'percentage', 'ratio', 'average', 'profit_loss', 'simple_interest', 'time_work', 'speed_distance', 'age_problem', 'number_series'];
+            const englishTypes = ['english_grammar', 'error_detection'];
+            const reasoningTypes = ['logical_reasoning', 'pattern_completion'];
+            
+            const selectedTypes = [];
+            
+            // Ensure balanced distribution: 1 reasoning, 1 english, 3 math OR 1 reasoning, 2 english, 2 math
+            selectedTypes.push(reasoningTypes[Math.floor(Math.random() * reasoningTypes.length)]);
+            selectedTypes.push(englishTypes[Math.floor(Math.random() * englishTypes.length)]);
+            
+            // Add 3 more questions from mixed types
+            const allTypes = [...mathTypes, ...englishTypes, ...reasoningTypes];
+            for (let i = 0; i < 3; i++) {
+                const type = allTypes[Math.floor(Math.random() * allTypes.length)];
+                selectedTypes.push(type);
+            }
+            
+            // Shuffle the question order
+            selectedTypes.sort(() => Math.random() - 0.5);
+            
+            // Generate questions
             for (let i = 0; i < 5; i++) {
-                const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+                const type = selectedTypes[i];
                 const q = MathGenerator.generateQuestion(type, selectedDifficulty);
                 currentChallenge.questions.push(q);
             }
@@ -4778,6 +4999,75 @@ service cloud.firestore {
             document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
         }
 
+        // Leaderboard Season Management
+        const SEASON_DURATION_DAYS = 15;
+        
+        function getSeasonInfo() {
+            const storedSeason = localStorage.getItem('leaderboardSeason');
+            if (storedSeason) {
+                return JSON.parse(storedSeason);
+            }
+            // Initialize new season
+            const newSeason = {
+                startDate: new Date().toISOString(),
+                seasonNumber: 1
+            };
+            localStorage.setItem('leaderboardSeason', JSON.stringify(newSeason));
+            return newSeason;
+        }
+        
+        function shouldResetSeason() {
+            const season = getSeasonInfo();
+            const startDate = new Date(season.startDate);
+            const now = new Date();
+            const daysPassed = (now - startDate) / (1000 * 60 * 60 * 24);
+            return daysPassed >= SEASON_DURATION_DAYS;
+        }
+        
+        async function awardSeasonRewards(topPlayers) {
+            if (!firebaseInitialized || !db) return;
+            
+            const rewards = [
+                { rank: 1, coins: 1000, emoji: '🥇', title: 'Champion' },
+                { rank: 2, coins: 500, emoji: '🥈', title: 'Runner-up' },
+                { rank: 3, coins: 250, emoji: '🥉', title: 'Third Place' }
+            ];
+            
+            for (let i = 0; i < Math.min(3, topPlayers.length); i++) {
+                const player = topPlayers[i];
+                const reward = rewards[i];
+                
+                try {
+                    // Award coins to the player
+                    await db.collection('players').doc(player.id).update({
+                        coins: (player.coins || 0) + reward.coins
+                    });
+                    
+                    // If current player is a winner, update locally and show notification
+                    if (currentPlayer && currentPlayer.id === player.id) {
+                        currentPlayer.coins += reward.coins;
+                        localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+                        updateDashboard();
+                        showToast(`${reward.emoji} Season ${getSeasonInfo().seasonNumber} ${reward.title}! +${reward.coins} coins!`, 'success');
+                    }
+                    
+                    console.log(`✅ Awarded ${reward.coins} coins to ${player.name} (Rank ${reward.rank})`);
+                } catch (error) {
+                    console.error(`❌ Error awarding rewards to ${player.name}:`, error);
+                }
+            }
+        }
+        
+        function resetSeason() {
+            const currentSeason = getSeasonInfo();
+            const newSeason = {
+                startDate: new Date().toISOString(),
+                seasonNumber: currentSeason.seasonNumber + 1
+            };
+            localStorage.setItem('leaderboardSeason', JSON.stringify(newSeason));
+            console.log(`🔄 Season reset! Now starting Season ${newSeason.seasonNumber}`);
+        }
+        
         // Leaderboard
         async function loadLeaderboard() {
             // Check Firebase is initialized
@@ -4804,10 +5094,21 @@ service cloud.firestore {
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const rankingScore = (data.level * 1000) + (data.items?.length || 0) * 10;
-                    players.push({ ...data, rankingScore });
+                    players.push({ id: doc.id, ...data, rankingScore });
                 });
                 
                 players.sort((a, b) => b.rankingScore - a.rankingScore);
+                
+                // Check if season should reset
+                if (shouldResetSeason() && players.length > 0) {
+                    // Award rewards to top 3 before resetting
+                    await awardSeasonRewards(players.slice(0, 3));
+                    resetSeason();
+                }
+                
+                const season = getSeasonInfo();
+                const seasonStartDate = new Date(season.startDate);
+                const daysRemaining = SEASON_DURATION_DAYS - Math.floor((new Date() - seasonStartDate) / (1000 * 60 * 60 * 24));
                 
                 const leaderboardHtml = players.map((player, index) => {
                     const rank = index + 1;
@@ -4830,8 +5131,16 @@ service cloud.firestore {
                     `;
                 }).join('');
                 
-                document.getElementById('leaderboardList').innerHTML = leaderboardHtml || 
-                    '<p style="text-align: center; padding: 2rem; color: #6b7280;">No players yet</p>';
+                const seasonHeader = `
+                    <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; text-align: center;">
+                        <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem;">🏆 Season ${season.seasonNumber}</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">${daysRemaining} days remaining until reset</div>
+                        <div style="font-size: 0.85rem; opacity: 0.85; margin-top: 0.5rem;">Top 3 rewards: 🥇 1000 coins • 🥈 500 coins • 🥉 250 coins</div>
+                    </div>
+                `;
+                
+                document.getElementById('leaderboardList').innerHTML = seasonHeader + (leaderboardHtml || 
+                    '<p style="text-align: center; padding: 2rem; color: #6b7280;">No players yet</p>');
                 
             } catch (error) {
                 console.error('❌ Error loading leaderboard:', error);
@@ -4966,6 +5275,8 @@ service cloud.firestore {
 
             try {
                 await updatePlayer({ name: newName, avatar: editSelectedAvatar, color: editSelectedColor });
+                // Also update localStorage to ensure persistence
+                localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
                 showToast('✅ Profile updated!', 'success');
             } catch (error) {
                 showToast('Failed to save profile: ' + error.message, 'error');
@@ -5474,18 +5785,43 @@ service cloud.firestore {
             { id: 'perfect_score', icon: '💎', name: 'Perfect!', desc: 'Get 5/5 in a challenge', check: p => (p.stats?.perfect || 0) >= 1 },
             { id: 'streak_3', icon: '🔥', name: 'On Fire', desc: 'Reach a 3-day streak', check: p => (p.streak || 0) >= 3 },
             { id: 'streak_7', icon: '⚡', name: 'Week Warrior', desc: 'Reach a 7-day streak', check: p => (p.streak || 0) >= 7 },
+            { id: 'streak_14', icon: '💪', name: 'Fortnight Champion', desc: 'Reach a 14-day streak', check: p => (p.streak || 0) >= 14 },
             { id: 'streak_30', icon: '🌟', name: 'Legendary', desc: '30-day streak!', check: p => (p.streak || 0) >= 30 },
+            { id: 'streak_100', icon: '🔱', name: 'Immortal', desc: '100-day streak!', check: p => (p.streak || 0) >= 100 },
+            { id: 'q50', icon: '📚', name: 'Learner', desc: 'Answer 50 questions', check: p => ((p.stats?.correct || 0) + (p.stats?.wrong || 0)) >= 50 },
             { id: 'q100', icon: '💯', name: 'Century', desc: 'Answer 100 questions', check: p => ((p.stats?.correct || 0) + (p.stats?.wrong || 0)) >= 100 },
             { id: 'q500', icon: '🚀', name: 'Unstoppable', desc: 'Answer 500 questions', check: p => ((p.stats?.correct || 0) + (p.stats?.wrong || 0)) >= 500 },
+            { id: 'q1000', icon: '🌠', name: 'Math Master', desc: 'Answer 1000 questions', check: p => ((p.stats?.correct || 0) + (p.stats?.wrong || 0)) >= 1000 },
+            { id: 'q2500', icon: '🎓', name: 'Scholar', desc: 'Answer 2500 questions', check: p => ((p.stats?.correct || 0) + (p.stats?.wrong || 0)) >= 2500 },
             { id: 'level5', icon: '⭐', name: 'Rising Star', desc: 'Reach Level 5', check: p => (p.level || 1) >= 5 },
             { id: 'level10', icon: '🏆', name: 'Champion', desc: 'Reach Level 10', check: p => (p.level || 1) >= 10 },
+            { id: 'level15', icon: '💫', name: 'Expert', desc: 'Reach Level 15', check: p => (p.level || 1) >= 15 },
             { id: 'level20', icon: '👑', name: 'Legend', desc: 'Reach Level 20', check: p => (p.level || 1) >= 20 },
+            { id: 'level30', icon: '🎖️', name: 'Master', desc: 'Reach Level 30', check: p => (p.level || 1) >= 30 },
+            { id: 'level50', icon: '🦅', name: 'Grandmaster', desc: 'Reach Level 50', check: p => (p.level || 1) >= 50 },
             { id: 'shop5', icon: '🛍️', name: 'Shopaholic', desc: 'Own 5 items', check: p => (p.items?.length || 0) >= 5 },
             { id: 'shop15', icon: '🎒', name: 'Collector', desc: 'Own 15 items', check: p => (p.items?.length || 0) >= 15 },
+            { id: 'shop30', icon: '💼', name: 'Hoarder', desc: 'Own 30 items', check: p => (p.items?.length || 0) >= 30 },
+            { id: 'shop50', icon: '🏰', name: 'Tycoon', desc: 'Own 50 items', check: p => (p.items?.length || 0) >= 50 },
             { id: 'accuracy80', icon: '🎯', name: 'Sharpshooter', desc: '80%+ accuracy (100+ Qs)', check: p => { const t=(p.stats?.correct||0)+(p.stats?.wrong||0); return t>=100 && (p.stats?.correct||0)/t >= 0.8; }},
+            { id: 'accuracy90', icon: '🎪', name: 'Sniper', desc: '90%+ accuracy (100+ Qs)', check: p => { const t=(p.stats?.correct||0)+(p.stats?.wrong||0); return t>=100 && (p.stats?.correct||0)/t >= 0.9; }},
+            { id: 'accuracy95', icon: '🌟', name: 'Flawless', desc: '95%+ accuracy (100+ Qs)', check: p => { const t=(p.stats?.correct||0)+(p.stats?.wrong||0); return t>=100 && (p.stats?.correct||0)/t >= 0.95; }},
+            { id: 'coins500', icon: '🪙', name: 'Saver', desc: 'Earn 500 total coins', check: p => (p.stats?.coinsEarned || 0) >= 500 },
             { id: 'coins1000', icon: '💰', name: 'Rich!', desc: 'Earn 1000 total coins', check: p => (p.stats?.coinsEarned || 0) >= 1000 },
+            { id: 'coins5000', icon: '💎', name: 'Wealthy', desc: 'Earn 5000 total coins', check: p => (p.stats?.coinsEarned || 0) >= 5000 },
+            { id: 'coins10000', icon: '👑', name: 'Millionaire', desc: 'Earn 10000 total coins', check: p => (p.stats?.coinsEarned || 0) >= 10000 },
             { id: 'challenges10', icon: '🏅', name: 'Veteran', desc: 'Complete 10 challenges', check: p => (p.stats?.challenges || 0) >= 10 },
+            { id: 'challenges25', icon: '🎗️', name: 'Warrior', desc: 'Complete 25 challenges', check: p => (p.stats?.challenges || 0) >= 25 },
             { id: 'challenges50', icon: '🎖️', name: 'Elite', desc: 'Complete 50 challenges', check: p => (p.stats?.challenges || 0) >= 50 },
+            { id: 'challenges100', icon: '🏵️', name: 'Hero', desc: 'Complete 100 challenges', check: p => (p.stats?.challenges || 0) >= 100 },
+            { id: 'perfect_5', icon: '✨', name: 'Perfectionist', desc: 'Get 5 perfect scores', check: p => (p.stats?.perfect || 0) >= 5 },
+            { id: 'perfect_10', icon: '💫', name: 'Flawless Run', desc: 'Get 10 perfect scores', check: p => (p.stats?.perfect || 0) >= 10 },
+            { id: 'perfect_25', icon: '🌈', name: 'Perfection Master', desc: 'Get 25 perfect scores', check: p => (p.stats?.perfect || 0) >= 25 },
+            { id: 'early_bird', icon: '🌅', name: 'Early Bird', desc: 'Play before 8 AM', check: p => (p.stats?.earlyBird || 0) >= 1 },
+            { id: 'night_owl', icon: '🦉', name: 'Night Owl', desc: 'Play after 10 PM', check: p => (p.stats?.nightOwl || 0) >= 1 },
+            { id: 'speed_demon', icon: '⚡', name: 'Speed Demon', desc: 'Answer 20 Qs in under 10 mins', check: p => (p.stats?.speedDemon || 0) >= 1 },
+            { id: 'mythic_buyer', icon: '🔮', name: 'Mythic Collector', desc: 'Own a mythic item', check: p => (p.stats?.mythicOwned || 0) >= 1 },
+            { id: 'divine_buyer', icon: '✨', name: 'Divine Collector', desc: 'Own a divine item', check: p => (p.stats?.divineOwned || 0) >= 1 },
         ];
 
         function renderAchievements() {
@@ -5926,17 +6262,161 @@ service cloud.firestore {
         // PATCH updateDashboard to show streak + totals
         // =============================================
         const _origUpdateDashboard = updateDashboard;
+        // Theme System
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('preferredTheme', theme);
+            
+            // Update button styles
+            ['light', 'dark', 'night'].forEach(t => {
+                const btn = document.getElementById(`theme-${t}`);
+                if (btn) {
+                    if (t === theme) {
+                        btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+                        btn.style.color = 'white';
+                        btn.style.borderColor = '#6366f1';
+                    } else {
+                        btn.style.background = 'white';
+                        btn.style.color = '#1f2937';
+                        btn.style.borderColor = '#e5e7eb';
+                    }
+                }
+            });
+        }
+
+        // Load saved theme on startup
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('preferredTheme') || 'light';
+            setTheme(savedTheme);
+        });
+
+        // Hint/Idea System
+        let hintsUsedInChallenge = 0;
+        const MAX_HINTS = 10;
+
+        function getHintCost(hintNumber) {
+            return hintNumber * 100; // 1st = 100, 2nd = 200, 3rd = 300, etc.
+        }
+
+        function useHint() {
+            if (!currentChallenge || !currentPlayer) return;
+            
+            const currentHint = hintsUsedInChallenge + 1;
+            if (currentHint > MAX_HINTS) {
+                showToast('Maximum hints reached for this challenge', 'error');
+                return;
+            }
+            
+            const cost = getHintCost(currentHint);
+            if (currentPlayer.coins < cost) {
+                showToast(`💰 Need ${cost} coins for hint #${currentHint}`, 'error');
+                return;
+            }
+            
+            // Deduct coins
+            currentPlayer.coins -= cost;
+            hintsUsedInChallenge++;
+            
+            // Update display
+            updateDashboard();
+            updateHintButton();
+            
+            // Save coin deduction
+            updatePlayer({ coins: currentPlayer.coins });
+            
+            // Provide hint
+            const q = currentChallenge.questions[currentChallenge.currentQuestion];
+            provideHint(q, currentHint);
+            
+            showToast(`💡 Hint #${currentHint} used (-${cost} coins)`, 'warning');
+        }
+
+        function provideHint(question, hintLevel) {
+            const optionButtons = document.querySelectorAll('.answer-option');
+            
+            if (hintLevel === 1) {
+                // First hint: Eliminate 2 wrong answers
+                const wrongIndexes = [];
+                question.options.forEach((opt, idx) => {
+                    if (opt !== question.answer) wrongIndexes.push(idx);
+                });
+                
+                // Randomly eliminate 2 wrong answers
+                const toEliminate = wrongIndexes.sort(() => Math.random() - 0.5).slice(0, 2);
+                toEliminate.forEach(idx => {
+                    if (optionButtons[idx]) {
+                        optionButtons[idx].style.opacity = '0.3';
+                        optionButtons[idx].style.textDecoration = 'line-through';
+                    }
+                });
+                
+                showToast('💡 Two incorrect options eliminated', 'success');
+            } else if (hintLevel === 2) {
+                // Second hint: Provide category or concept hint
+                const hints = {
+                    'mathematics': 'Focus on the mathematical operation required',
+                    'english': 'Check grammar rules and sentence structure',
+                    'reasoning': 'Look for the logical pattern or relationship'
+                };
+                const category = question.category || 'mathematics';
+                showToast(`💡 Hint: ${hints[category] || 'Think step by step'}`, 'success');
+            } else {
+                // Additional hints: Narrow down further
+                showToast('💡 Review the remaining options carefully', 'success');
+            }
+        }
+
+        function updateHintButton() {
+            const hintBtn = document.getElementById('hintButton');
+            if (hintBtn) {
+                const nextHintNum = hintsUsedInChallenge + 1;
+                if (nextHintNum > MAX_HINTS) {
+                    hintBtn.textContent = '💡 No hints left';
+                    hintBtn.disabled = true;
+                } else {
+                    const cost = getHintCost(nextHintNum);
+                    hintBtn.textContent = `💡 Hint #${nextHintNum} (${cost} coins)`;
+                    hintBtn.disabled = false;
+                }
+            }
+        }
+
+        // Profile Dropdown Toggle
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('profileDropdown');
+            const avatar = document.getElementById('dashAvatar');
+            if (dropdown && !dropdown.contains(event.target) && !avatar.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
         function updateDashboard() {
             if (!currentPlayer) return;
+            
+            // Update main dashboard
             document.getElementById('dashAvatar').textContent = currentPlayer.avatar;
             document.getElementById('dashAvatar').style.background = currentPlayer.color;
             document.getElementById('dashName').textContent = currentPlayer.name;
             document.getElementById('dashLevel').textContent = `Level ${currentPlayer.level}`;
             document.getElementById('dashCoins').textContent = currentPlayer.coins;
-            document.getElementById('dashXP').textContent = currentPlayer.xp;
-            document.getElementById('dashStreak').textContent = currentPlayer.streak || 0;
+            
+            // Update dropdown values
+            document.getElementById('dropdownAvatar').textContent = currentPlayer.avatar;
+            document.getElementById('dropdownAvatar').style.background = currentPlayer.color;
+            document.getElementById('dropdownName').textContent = currentPlayer.name;
+            document.getElementById('dropdownLevel').textContent = `Level ${currentPlayer.level}`;
+            document.getElementById('dropdownXP').textContent = currentPlayer.xp;
+            document.getElementById('dropdownStreak').textContent = currentPlayer.streak || 0;
+            
             const total = (currentPlayer.stats?.correct || 0) + (currentPlayer.stats?.wrong || 0);
-            document.getElementById('dashTotal').textContent = total;
+            document.getElementById('dropdownTotal').textContent = total;
+            
             if (document.getElementById('questionsToday')) document.getElementById('questionsToday').textContent = currentPlayer.questionsToday || 0;
             const nextLevelXP = Math.pow(currentPlayer.level + 1, 2) * 100;
             const currentLevelXP = Math.pow(currentPlayer.level, 2) * 100;
@@ -5996,5 +6476,38 @@ service cloud.firestore {
             });
         }
     </script>
+    <!-- Professional Footer -->
+    <footer style="background: var(--bg-card); color: var(--text-primary); padding: 2rem 1rem; margin-top: 3rem; border-top: 2px solid var(--border-color); transition: all 0.3s;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <div>
+                    <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Agames</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">Empowering learners through gamified education. Master mathematics, reasoning, and English through competitive challenges designed for banking and competitive exam preparation.</p>
+                </div>
+                <div>
+                    <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem;">Quick Links</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 0.5rem;"><a href="#" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='var(--text-secondary)'">About Us</a></li>
+                        <li style="margin-bottom: 0.5rem;"><a href="#" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='var(--text-secondary)'">Privacy Policy</a></li>
+                        <li style="margin-bottom: 0.5rem;"><a href="#" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='var(--text-secondary)'">Terms of Service</a></li>
+                        <li style="margin-bottom: 0.5rem;"><a href="#" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='var(--text-secondary)'">Contact Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem;">Connect With Us</h4>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <a href="#" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.2rem; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">📘</a>
+                        <a href="#" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.2rem; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🐦</a>
+                        <a href="#" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.2rem; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">📸</a>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem;">Follow us for updates, tips, and community challenges.</p>
+                </div>
+            </div>
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; text-align: center;">
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">© 2024 Agames. All rights reserved.</p>
+                <p style="color: var(--text-secondary); font-size: 0.8rem;">MathMart Arena v2.0 - Designed for Excellence in Competitive Exam Preparation</p>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
