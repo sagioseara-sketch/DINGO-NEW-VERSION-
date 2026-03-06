@@ -13,88 +13,144 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
         node-version: '18'
         
     - name: Setup Java JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '11'
         
+    - name: Install ImageMagick for icon generation
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y imagemagick
+        
     - name: Install Cordova
       run: |
-        npm install -g cordova
+        npm install -g cordova@latest
         
     - name: Create Cordova project
       run: |
-        cordova create mathmart-arena com.agames.mathmart.arena "MathMart Arena"
-        cd mathmart-arena
-        cordova platform add android
+        cordova create mathmart com.agames.mathmart.arena "MathMart Arena"
+        
+    - name: Generate icons BEFORE adding platform
+      run: |
+        cd mathmart
+        mkdir -p res/icon/android
+        
+        # Generate single master icon that will be copied to all densities
+        convert -background none ../icons/mathmart-arena-icon.svg -resize 192x192 res/icon/android/icon.png
+        
+        echo "Icon generated successfully:"
+        ls -lh res/icon/android/
         
     - name: Copy application files
       run: |
-        cp index.html mathmart-arena/www/
-        cp manifest.json mathmart-arena/www/
-        cp config.xml mathmart-arena/
-        cp -r icons mathmart-arena/www/ || true
+        cp index.html mathmart/www/index.html
+        cp manifest.json mathmart/www/manifest.json
+        cp config.xml mathmart/config.xml
         
-    - name: Generate app icons
+    - name: Verify icon exists before platform add
       run: |
-        cd mathmart-arena
-        # Install sharp for image processing
-        npm install sharp-cli -g
-        # Create icons directory if it doesn't exist
-        mkdir -p www/icons
-        mkdir -p res/icon/android
-        # Convert SVG to PNG at different sizes (using imagemagick as fallback)
-        if command -v convert &> /dev/null; then
-          convert -background none ../mathmart-arena-icon.svg -resize 72x72 www/icons/icon-72x72.png
-          convert -background none ../mathmart-arena-icon.svg -resize 96x96 www/icons/icon-96x96.png
-          convert -background none ../mathmart-arena-icon.svg -resize 128x128 www/icons/icon-128x128.png
-          convert -background none ../mathmart-arena-icon.svg -resize 144x144 www/icons/icon-144x144.png
-          convert -background none ../mathmart-arena-icon.svg -resize 152x152 www/icons/icon-152x152.png
-          convert -background none ../mathmart-arena-icon.svg -resize 192x192 www/icons/icon-192x192.png
-          convert -background none ../mathmart-arena-icon.svg -resize 384x384 www/icons/icon-384x384.png
-          convert -background none ../mathmart-arena-icon.svg -resize 512x512 www/icons/icon-512x512.png
-          # Android specific icons
-          convert -background none ../mathmart-arena-icon.svg -resize 36x36 res/icon/android/ldpi.png
-          convert -background none ../mathmart-arena-icon.svg -resize 48x48 res/icon/android/mdpi.png
-          convert -background none ../mathmart-arena-icon.svg -resize 72x72 res/icon/android/hdpi.png
-          convert -background none ../mathmart-arena-icon.svg -resize 96x96 res/icon/android/xhdpi.png
-          convert -background none ../mathmart-arena-icon.svg -resize 144x144 res/icon/android/xxhdpi.png
-          convert -background none ../mathmart-arena-icon.svg -resize 192x192 res/icon/android/xxxhdpi.png
+        cd mathmart
+        if [ ! -f "res/icon/android/icon.png" ]; then
+          echo "ERROR: Icon file not found!"
+          exit 1
+        fi
+        echo "Icon verified at: res/icon/android/icon.png"
+        file res/icon/android/icon.png
+        
+    - name: Add Android platform
+      run: |
+        cd mathmart
+        cordova platform add android@latest
+        
+    - name: Prepare Android build
+      run: |
+        cd mathmart
+        cordova prepare android
+        
+    - name: Build Android APK
+      run: |
+        cd mathmart
+        cordova build android --debug --verbose
+        
+    - name: Find and copy APK
+      run: |
+        cd mathmart
+        echo "Searching for APK files..."
+        find platforms/android -name "*.apk" -type f
+        
+        # Copy the debug APK to root with simple name
+        APK_PATH=$(find platforms/android/app/build/outputs/apk -name "*.apk" -type f | head -n 1)
+        if [ -z "$APK_PATH" ]; then
+          echo "ERROR: No APK file found!"
+          exit 1
         fi
         
-    - name: Build APK
-      run: |
-        cd mathmart-arena
-        cordova build android --release
+        cp "$APK_PATH" ../mathmart-arena.apk
+        echo "APK copied successfully"
         
-    - name: Sign APK
+    - name: Verify APK file
       run: |
-        cd mathmart-arena
-        # For unsigned APK, copy the debug version
-        # In production, you would sign with your keystore
-        cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../mathmart-arena-debug.apk
+        if [ ! -f "mathmart-arena.apk" ]; then
+          echo "ERROR: APK file does not exist!"
+          exit 1
+        fi
+        
+        echo "APK file details:"
+        ls -lh mathmart-arena.apk
+        file mathmart-arena.apk
         
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
-        name: mathmart-arena-apk
-        path: mathmart-arena-debug.apk
+        name: MathMart-Arena-APK
+        path: mathmart-arena.apk
+        if-no-files-found: error
         
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        files: mathmart-arena-debug.apk
+        tag_name: v2.0.${{ github.run_number }}
+        name: MathMart Arena v2.0.${{ github.run_number }}
+        body: |
+          ## MathMart Arena - Android APK Release
+          
+          **Build Information:**
+          - Commit: ${{ github.sha }}
+          - Build Number: ${{ github.run_number }}
+          - Build Date: ${{ github.event.head_commit.timestamp }}
+          
+          ### Installation Instructions
+          1. Download mathmart-arena.apk below
+          2. Transfer to your Android device (via USB or cloud storage)
+          3. Enable "Install from Unknown Sources" in Settings → Security
+          4. Open the APK file and tap Install
+          
+          ### Features
+          - ✅ Mathematics, Reasoning & English Questions
+          - 💡 Progressive Hint System with Coin Economy
+          - 🎨 Three Theme Options (Light, Dark, Night)
+          - 🏆 Global Leaderboard with Seasonal Rewards
+          - 🎖️ 42+ Achievement Badges
+          - ⚡ Competitive Challenge Mode
+          
+          ### Requirements
+          - Android 5.1 (API 22) or higher
+          - 50 MB storage space
+          - Internet connection for leaderboard features
+          
+          ### Support
+          Report issues at: https://github.com/${{ github.repository }}/issues
+        files: mathmart-arena.apk
         draft: false
         prerelease: false
       env:
