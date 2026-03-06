@@ -13,15 +13,15 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
         node-version: '18'
         
     - name: Setup Java JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '17'
@@ -31,27 +31,28 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y imagemagick
         
-    - name: Install specific Cordova versions for stability
+    - name: Remove system Gradle to avoid version conflicts
+      run: |
+        # Remove system Gradle from PATH
+        echo "Removing system Gradle..."
+        sudo rm -rf /usr/share/gradle* || true
+        which gradle && sudo rm $(which gradle) || echo "No system gradle found"
+        
+    - name: Install Cordova with compatible versions
       run: |
         npm install -g cordova@12.0.0
-        
-    - name: Verify installations
-      run: |
         cordova --version
-        java -version
-        node --version
-        npm --version
         
     - name: Create Cordova project
       run: |
         cordova create mathmart com.agames.mathmart.arena "MathMart Arena"
-        cd mathmart
         
     - name: Generate app icon
       run: |
         cd mathmart
         mkdir -p res/icon/android
         convert -background none ../icons/mathmart-arena-icon.svg -resize 192x192 res/icon/android/icon.png
+        echo "Icon generated:"
         ls -lh res/icon/android/icon.png
         
     - name: Copy application files
@@ -59,62 +60,64 @@ jobs:
         cp index.html mathmart/www/index.html
         cp manifest.json mathmart/www/manifest.json
         cp config.xml mathmart/config.xml
+        echo "Files copied successfully"
         
-    - name: Add Android platform with specific version
+    - name: Add Android platform
       run: |
         cd mathmart
-        cordova platform add android@12.0.1
+        # Let Cordova handle Gradle version through wrapper
+        cordova platform add android@12.0.1 --verbose
         
-    - name: Display Android platform information
+    - name: Verify platform installation
       run: |
         cd mathmart
         cordova platform ls
+        echo "Android platform added successfully"
         
-    - name: Build with increased verbosity
+    - name: Build APK with Cordova's managed Gradle
       run: |
         cd mathmart
-        cordova build android --debug --verbose --gradleArg=--stacktrace || {
-          echo "Build failed. Displaying last 100 lines of build output:"
-          tail -n 100 platforms/android/app/build/outputs/logs/manifest-merger-debug-report.txt 2>/dev/null || echo "No manifest merger log found"
-          exit 1
-        }
+        cordova build android --debug --verbose
         
-    - name: List all generated files
-      if: always()
+    - name: Locate and copy APK
       run: |
         cd mathmart
-        find platforms/android/app/build/outputs -type f -name "*.apk" || echo "No APK files found"
+        echo "Searching for APK files..."
+        find platforms/android/app/build/outputs -name "*.apk" -type f
         
-    - name: Copy APK
-      run: |
-        cd mathmart
         APK_PATH=$(find platforms/android/app/build/outputs/apk/debug -name "*.apk" -type f | head -n 1)
         if [ -z "$APK_PATH" ]; then
-          echo "ERROR: No APK found"
+          echo "ERROR: No APK file found!"
           exit 1
         fi
-        cp "$APK_PATH" ../mathmart-arena.apk
-        ls -lh ../mathmart-arena.apk
         
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+        echo "Found APK at: $APK_PATH"
+        cp "$APK_PATH" ../mathmart-arena.apk
+        
+    - name: Verify APK
+      run: |
+        ls -lh mathmart-arena.apk
+        file mathmart-arena.apk
+        
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
       with:
         name: MathMart-Arena-APK
         path: mathmart-arena.apk
         if-no-files-found: error
         
-    - name: Create Release
+    - name: Create GitHub Release
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v2.0.${{ github.run_number }}
         name: MathMart Arena v2.0.${{ github.run_number }}
         body: |
-          ## MathMart Arena - Android APK
+          ## MathMart Arena Android APK
           
-          Download and install mathmart-arena.apk on your Android device.
+          Download mathmart-arena.apk and install on Android 5.1+
           
-          **Requirements:** Android 5.1+
+          Enable "Install from Unknown Sources" in device settings before installation.
         files: mathmart-arena.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
