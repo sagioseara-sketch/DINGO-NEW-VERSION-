@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient Definitions -->
+    <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="successGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Shadow Filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="400" cy="400" r="380" fill="url(#primaryGradient)" filter="url(#shadow)"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="400" cy="400" r="340" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.3"/>
+  
+  <!-- Shield Shape (Competitive Gaming Element) -->
+  <path d="M 400 120 L 520 180 L 520 320 Q 520 420 400 500 Q 280 420 280 320 L 280 180 Z" 
+        fill="#ffffff" opacity="0.95" filter="url(#shadow)"/>
+  
+  <!-- Mathematical Symbols -->
+  <!-- Plus Symbol -->
+  <g transform="translate(320, 220)">
+    <rect x="-4" y="-20" width="8" height="40" fill="url(#primaryGradient)" rx="2"/>
+    <rect x="-20" y="-4" width="40" height="8" fill="url(#primaryGradient)" rx="2"/>
+  </g>
+  
+  <!-- Multiplication Symbol -->
+  <g transform="translate(480, 220) rotate(45)">
+    <rect x="-4" y="-20" width="8" height="40" fill="url(#accentGradient)" rx="2"/>
+    <rect x="-20" y="-4" width="40" height="8" fill="url(#accentGradient)" rx="2"/>
+  </g>
+  
+  <!-- Division Symbol -->
+  g transform="translate(400, 300)">
+    <circle cx="0" cy="-15" r="6" fill="url(#successGradient)"/>
+    <rect x="-25" y="-3" width="50" height="6" fill="url(#successGradient)" rx="3"/>
+    <circle cx="0" cy="15" r="6" fill="url(#successGradient)"/>
+  </g>
+  
+  <!-- Equals Symbol -->
+  <g transform="translate(400, 380)">
+    <rect x="-30" y="-10" width="60" height="6" fill="url(#primaryGradient)" rx="3"/>
+    <rect x="-30" y="4" width="60" height="6" fill="url(#primaryGradient)" rx="3"/>
+  </g>
+  
+  <!-- Trophy Icon (Competition Element) -->
+  <g transform="translate(400, 440)">
+    <!-- Trophy Cup -->
+    <path d="M -35 -30 L -35 -10 Q -35 10 -25 20 L -15 30 L 15 30 L 25 20 Q 35 10 35 -10 L 35 -30 Z" 
+          fill="url(#accentGradient)" filter="url(#shadow)"/>
+    <!-- Trophy Handles -->
+    <path d="M -35 -20 Q -55 -20 -55 0 Q -55 15 -40 15" fill="none" stroke="url(#accentGradient)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M 35 -20 Q 55 -20 55 0 Q 55 15 40 15" fill="none" stroke="url(#accentGradient)" stroke-width="6" stroke-linecap="round"/>
+    <!-- Trophy Base -->
+    <rect x="-40" y="30" width="80" height="8" fill="url(#accentGradient)" rx="4"/>
+    <rect x="-30" y="38" width="60" height="12" fill="url(#accentGradient)" rx="4"/>
+    <!-- Star on Trophy -->
+    <path d="M 0 -15 L 4 -4 L 16 -4 L 7 3 L 10 15 L 0 8 L -10 15 L -7 3 L -16 -4 L -4 -4 Z" 
+          fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- Circular Progress Indicator (Gaming Element) -->
+  <circle cx="400" cy="400" r="280" fill="none" stroke="#ffffff" stroke-width="12" 
+          opacity="0.2" stroke-dasharray="5 15"/>
+  
+  <!-- Text: MathMart -->
+  <text x="400" y="600" font-family="'Arial Black', sans-serif" font-size="72" 
+        font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">
+    MathMart
+  </text>
+  
+  <!-- Text: ARENA -->
+  <text x="400" y="660" font-family="'Arial', sans-serif" font-size="42" 
+        font-weight="600" fill="#ffffff" text-anchor="middle" letter-spacing="8" opacity="0.9">
+    ARENA
+  </text>
+  
+  <!-- Tagline -->
+  <text x="400" y="700" font-family="'Arial', sans-serif" font-size="18" 
+        font-weight="400" fill="#ffffff" text-anchor="middle" letter-spacing="3" opacity="0.7">
+    COMPETE • LEARN • EXCEL
+  </text>
+  
+  <!-- Decorative Stars -->
+  <g opacity="0.6" fill="#ffffff">
+    <path d="M 150 200 L 153 207 L 161 207 L 155 212 L 157 220 L 150 215 L 143 220 L 145 212 L 139 207 L 147 207 Z"/>
+    <path d="M 650 200 L 653 207 L 661 207 L 655 212 L 657 220 L 650 215 L 643 220 L 645 212 L 639 207 L 647 207 Z"/>
+    <path d="M 200 600 L 203 607 L 211 607 L 205 612 L 207 620 L 200 615 L 193 620 L 195 612 L 189 607 L 197 607 Z"/>
+    <path d="M 600 600 L 603 607 L 611 607 L 605 612 L 607 620 L 600 615 L 593 620 L 595 612 L 589 607 L 597 607 Z"/>
+  </g>
+</svg>
